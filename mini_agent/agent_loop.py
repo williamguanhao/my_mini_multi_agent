@@ -1,22 +1,30 @@
 from .agent_state import AgentState
-
+from .agent_result import AgentResult
+from .context import ContextProvider
+from .model import ModelClient
+from .tool_executor import ToolExecutor
+from .message_store import MessageStore
 class AgentLoop:
 
     def __init__(
             self,
-            gateway,
+            context_provider,
+            model_client,
+            tool_executor,
             registry,
             session,
-            runtime,
-            retriever,
+            message_store,
             tracer=None,
-            system_prompt=None
+            system_prompt=None,
             ):
-        self.gateway = gateway
+        self.context_provider = context_provider
+        self.model_client = model_client
+        self.tool_executor = tool_executor
+
         self.registry = registry
         self.session = session
-        self.runtime = runtime
-        self.regtriver = retriever
+        self.message_store = message_store
+
         self.tracer = tracer
         self.system_prompt = {
             "role": "system",
@@ -28,7 +36,7 @@ class AgentLoop:
             self,
             user_input: str,
             max_steps: int = 10
-        ) -> str:
+        ) -> AgentResult:
 
         state = AgentState(
             user_input=user_input
@@ -38,7 +46,7 @@ class AgentLoop:
             run_id = self.tracer.start_run()
 
         try:
-            self.session.add_user_message(user_input)
+            self.message_store.add_user(user_input)
             if self.tracer:
                 self.tracer.log(
                     "USER_MESSAGE",
@@ -50,42 +58,94 @@ class AgentLoop:
             for step in range(max_steps):
                 state.step = step + 1
 
-                context = self.regtriver.retrieve(
-                    self.session,
-                    query = user_input
+                # -------------------------
+                # Context
+                # -------------------------
+                context = (
+                    self.context_provider.build(
+                        user_input
+                    )
                 )
 
                 messages = [
                     self.system_prompt,
-                    *context
+                    *context.messages,
                 ]
 
-                response = self.gateway.chat(
-                    messages,
-                    self.registry.schemas()
+                # -------------------------
+                # Model
+                # -------------------------
+
+                response = (
+                    self.model_client.generate(
+                        messages =messages,
+                        tools = self.registry.schemas(),
+                    )
                 )
 
-                self.session.add_assistant_message(
+                # -------------------------
+                # Save model response
+                # -------------------------
+
+                self.message_store.add_assistant(
                     response
                 )
 
+                # -------------------------
+                # Finished
+                # -------------------------
+
                 if not response.tool_calls:
-                    state.finished = True
-                    state.final_output = response.content
-                    return response.content
+
+                    return self._complete(
+                        state,
+                        response.content,
+                    )
+                
+                # -------------------------
+                # Tools
+                # -------------------------
 
                 for tool_call in response.tool_calls:
-                    tool_response = self.runtime.execute(tool_call)
 
-                self.session.add_tool_message(
-                        tool_call_id=tool_response["tool_call_id"],
-                        tool_name=tool_response["name"],
-                        content=tool_response["content"],
-                )
+                    result = (
+                        self.tool_executor.execute(
+                            tool_call
+                        )
+                    )
 
-            raise RuntimeError(
-                f"Agent exceeded maximum steps: {max_steps}"
+                    state.tool_calls.append(
+                        {
+                            "tool_call_id": (
+                                result.tool_call_id
+                            ),
+                            "name": result.name,
+                            "arguments": (
+                                result.arguments
+                            ),
+                            "content": result.content,
+                            "success": result.success,
+                        }
+                    )
+                    self.message_store.add_tool(
+                        tool_call_id = (
+                            result.tool_call_id
+                        ),
+                        tool_name = result.name,
+                        content = result.content,
+                    )
+
+            # --------------------------------
+            # Maximum iteration reached
+            # --------------------------------
+            return AgentResult(
+                output=None,
+                status="max_steps",
+                iterations=state.step,
+                tool_calls=state.tool_calls,
+                state=state,
             )
+        
         except Exception as e:
 
             state.error = e
@@ -96,8 +156,35 @@ class AgentLoop:
                     "error": str(e)
                 }
             )
-            raise 
+            return AgentResult(
+                output=None,
+                status="error",
+                iterations=state.step,
+                tool_calls=state.tool_calls,
+                state=state,
+                error=e,
+            ) 
 
         finally:
             if self.tracer:
-                self.tracer.end_run() 
+                self.tracer.end_run()
+
+    # --------------------------------
+    # A clean termination point
+    # --------------------------------
+
+    def _complete(
+        self,
+        state: AgentState,
+        output: str | None,
+    ) -> AgentResult:
+        state.finished = True
+        state.final_output = output
+
+        return AgentResult(
+            output=output,
+            status="completed",
+            iterations=state.step,
+            tool_calls=state.tool_calls,
+            state=state,
+        )

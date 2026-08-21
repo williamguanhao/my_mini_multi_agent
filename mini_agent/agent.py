@@ -17,30 +17,44 @@ SYSTEM = """
 class Agent:
 
     def __init__(
-            self, 
-            gateway: Gateway,
-            registry: ToolRegistry,
-            session:Session,
-            runtime:Runtime,
-            retriever:Retriever,
-            tracer = None,
-            system_prompt:str=SYSTEM
+            self,
+            context_provider,
+            model_client,
+            tool_executor,
+            registry,
+            session,
+            message_store,
+            tracer=None,
+            system_prompt=None,
     ):
         self.loop = AgentLoop(
-            gateway=gateway,
+            context_provider=context_provider,
+            model_client=model_client,
+            tool_executor=tool_executor,
             registry=registry,
             session=session,
-            runtime=runtime,
-            retriever=retriever,
+            message_store=message_store,
             tracer=tracer,
             system_prompt=system_prompt
         )
 
     def run(self, user_input:str, max_steps=10) -> str:
-        return self.loop.run(
+        result =  self.loop.run(
             user_input=user_input,
             max_steps=max_steps,
         )
+        print(result)
+        if result.status == "error":
+            raise result.error
+
+
+        if result.status == "max_steps":
+            raise RuntimeError(
+                f"Agent exceeded maximum steps: "
+                f"{max_steps}"
+            )
+
+        return result.output or ""      
 
 
 

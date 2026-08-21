@@ -1,5 +1,6 @@
 import json
 import time
+from .tool_result import ToolResult
 
 class Runtime:
 
@@ -7,7 +8,7 @@ class Runtime:
         self.registry = registry
         self.tracer = tracer
 
-    def execute(self, tool_call):
+    def execute(self, tool_call) -> ToolResult:
 
         start = time.perf_counter()
 
@@ -75,6 +76,8 @@ class Runtime:
                             2,
                         ),
                         "tool": name,
+                        "tool_call_id": tool_call_id,
+                        "arguments": arguments,
                         "success": True,
                         "content": str(result),
                     },
@@ -84,13 +87,14 @@ class Runtime:
             # Normalized result
             # ---------------------------------
 
-            return {
-                "success": True,
-                "content": str(result),
-                "tool_call_id": tool_call_id,
-                "name": name,
-                "arguments": arguments
-            }
+            return ToolResult(
+                tool_call_id=tool_call_id,
+                name = name,
+                arguments = arguments,
+                content = str(result),
+                success=True
+            )
+
 
         except Exception as e:
                 duration = (
@@ -112,22 +116,24 @@ class Runtime:
                                 2,
                             ),
                             "tool": name,
+                            "tool_call_id": tool_call_id,
+                            "arguments": arguments,
                             "success": False,
                             "content": f"Tool error: {str(e)}",
                         },
                     )
 
-                return {
-                    "success": False,
-                    "content": f"Tool error: {str(e)}",
-                    "tool_call_id": getattr(
+                return ToolResult(
+                    tool_call_id = getattr(
                         tool_call,
                         "id",
                         None,
                     ),
-                    "name": name,
-                    "arguments": {},
-                }
+                    name = name,
+                    arguments = arguments,
+                    content = f"Tool error: {str(e)}",
+                    success=False
+                )
 
 
 

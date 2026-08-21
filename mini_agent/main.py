@@ -12,6 +12,11 @@ from .config import API_KEY, MODEL, BASE_URL
 from .retrieval import Retriever
 from .gateway import Gateway
 from .tracer import Tracer
+from .context import ContextProvider
+from .model import ModelClient
+from .tool_executor import ToolExecutor
+from .message_store import MessageStore
+
 SYSTEM = """
     You are mini_agent, a helpful personal assistant.
 
@@ -27,6 +32,12 @@ def main():
 
     session = Session(session_id="multi_demo_session", memory=memory)
 
+    retriever = Retriever(memory=memory, recent_limit=20, relevent_limit=10)
+    
+    context_providor = ContextProvider(session=session, retriever=retriever)
+
+    message_store = MessageStore(session=session)
+
     tracer = Tracer()
 
     llm = MiniMaxLLM(
@@ -34,6 +45,8 @@ def main():
         model=MODEL)
 
     gateway = Gateway(llm=llm, tracer=tracer)
+
+    model_client = ModelClient(gateway=gateway)
 
     tools = [
         GetTimeTool(),
@@ -44,16 +57,17 @@ def main():
 
     registry = ToolRegistry(tools)
 
-    runtime = Runtime(registry, tracer=tracer)
+    runtime = Runtime(registry=registry, tracer=tracer)
 
-    retriever = Retriever(memory=memory, recent_limit=20, relevent_limit=10)
+    tool_executor = ToolExecutor(runtime=runtime)
 
     agent = Agent(
-        gateway=gateway, 
+        context_provider=context_providor,
+        model_client=model_client,
+        tool_executor=tool_executor,
         registry=registry,
         session=session,
-        runtime=runtime,
-        retriever=retriever,
+        message_store=message_store,
         tracer=tracer,
         system_prompt=SYSTEM
     )

@@ -17,6 +17,8 @@ Phase 10 ░░░░░░░░░░   Build financial research & pricing age
 ### Added
 - refactore to agentloop
 - adding agent state
+- adding agent result 
+- isolate agent execution boundaries
 
                          User
                           │
@@ -26,18 +28,20 @@ Phase 10 ░░░░░░░░░░   Build financial research & pricing age
                           ▼
                      AgentLoop
                           │
-            ┌─────────────┼──────────────┐
-            │             │              │
-            ▼             ▼              ▼
-        Retriever      Gateway        Runtime
-            │             │              │
-            ▼             ▼              ▼
-         Session          LLM         Registry
+            ┌─────────────┼──────────────┼───────────────┐
+            │             │              │               │
+            ▼             ▼              ▼               ▼ 
+        Retriever      Gateway        Runtime         AgentState
+            │             │              │               │
+            ▼             ▼              ▼               ▼
+         Session          LLM         Registry        AgentResult
             │                            │
             ▼                            ▼
           Memory                        Tool
 
 ### Learned
+- Agent loop, status, result expanded for allow future change into node
+- Agent Loop orchestrates. It should not know implementation details.
 
 ### Structural change
 
@@ -45,6 +49,7 @@ mini_agent/
 ├── agent.py.           <-New
 ├── agent_loop.py       <-New
 ├── agent_state.py      <-New
+├── agent_result.py      <-New
 ├── config.py
 ├── gateway.py
 ├── memory.py
