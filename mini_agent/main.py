@@ -16,7 +16,10 @@ from .context import ContextProvider
 from .model import ModelClient
 from .tool_executor import ToolExecutor
 from .message_store import MessageStore
-
+from .event_bus import EventBus
+from .console_tracer import ConsoleTracer
+from .json_tracer import JsonTracer
+from .event_factory import EventFactory
 SYSTEM = """
     You are mini_agent, a helpful personal assistant.
 
@@ -61,6 +64,18 @@ def main():
 
     tool_executor = ToolExecutor(runtime=runtime)
 
+    event_bus = EventBus()
+
+    console = ConsoleTracer()
+
+    json_tracer = JsonTracer()
+
+    event_bus.subscribe(console)
+
+    event_bus.subscribe(json_tracer)
+
+    event_factory = EventFactory()
+
     agent = Agent(
         context_provider=context_providor,
         model_client=model_client,
@@ -68,7 +83,8 @@ def main():
         registry=registry,
         session=session,
         message_store=message_store,
-        tracer=tracer,
+        event_bus=event_bus,
+        event_factory=event_factory,
         system_prompt=SYSTEM
     )
 

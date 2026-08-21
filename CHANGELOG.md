@@ -11,7 +11,77 @@ Phase 8  ░░░░░░░░░░   Upgrade Memory + Eval
 Phase 9  ░░░░░░░░░░   Integrate derivative pricing models
 Phase 10 ░░░░░░░░░░   Build financial research & pricing agent
 
+## Phase 2 — Make tracing first-class
 
+### Added
+- trace each event that loop emits
+- conver trace into event handler
+- Make traces queryable and replayable instead of just logs
+AgentLoop
+    │
+    ▼
+EventBus
+    │
+    ├── ConsoleTracer
+    ├── JsonTracer
+    ├── SQLiteTracer
+    └── Dashboard
+
+### Learned
+
+### Structural change
+mini_agent/
+      ├── __init__.py
+      ├── config.py
+      ├── tool.py
+      ├── registry.py
+      ├── session.py
+      ├── memory.py
+      ├── retrieval.py
+      ├── gateway.py
+      ├── runtime.py
+      ├── tracer.py
+      ├── main.py                     # modified
+      ├── agent.py                   # modified
+      │
+      ├── [NEW] agent_loop.py        # modified
+      ├── [NEW] agent_state.py
+      ├── [NEW] agent_result.py
+      ├── [NEW] context.py
+      ├── [NEW] model.py
+      ├── [NEW] message_store.py
+      ├── [NEW] tool_executor.py
+      ├── [NEW] tool_result.py
+      │
+      ├── [NEW] event_bus.py
+      ├── [NEW] event_factory.py
+      ├── [NEW] event_handler.py
+      ├── [NEW] events.py
+      ├── [NEW] trace_handler.py
+      ├── [NEW] console_tracer.py
+      ├── [NEW] json_tracer.py
+      │
+      ├── tools/
+      │   ├── __init__.py
+      │   ├── time.py
+      │   ├── calculator.py
+      │   ├── save_note.py
+      │   └── read_notes.py
+      │
+      ├── llm/
+      │   ├── __init__.py
+      │   ├── base.py
+      │   ├── minimax.py
+      │   ├── openai.py
+      │   └── openrouter.py
+      │
+      └── eval/
+          ├── __init__.py
+          ├── case.py
+          ├── cases.py
+          ├── runEval.py
+          └── runner.py
+          
 ## Phase 1 — Refactor the existing Agent Loop
 
 ### Added

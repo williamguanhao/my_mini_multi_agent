@@ -24,7 +24,8 @@ class Agent:
             registry,
             session,
             message_store,
-            tracer=None,
+            event_bus,
+            event_factory,
             system_prompt=None,
     ):
         self.loop = AgentLoop(
@@ -34,7 +35,8 @@ class Agent:
             registry=registry,
             session=session,
             message_store=message_store,
-            tracer=tracer,
+            event_bus=event_bus,
+            event_factory=event_factory,
             system_prompt=system_prompt
         )
 
