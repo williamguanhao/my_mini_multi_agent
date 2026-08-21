@@ -25,7 +25,7 @@ def main():
 
     memory = SQLiteMemory()
 
-    session = Session(session_id="demo_session", memory=memory)
+    session = Session(session_id="multi_demo_session", memory=memory)
 
     tracer = Tracer()
 

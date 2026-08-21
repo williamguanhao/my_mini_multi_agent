@@ -1,670 +1,159 @@
 # Learning Changelog
 
-STEP 1  ██████████  Baseline architecture
-STEP 2  ██████████  LLM
-STEP 3  ██████████  Conversation
-STEP 4  ██████████  One tool
-STEP 5  ██████████  Tool execution + argument accept
-STEP 6  ██████████  Agent loop refactor
-STEP 7  ██████████  Multiple tools
-STEP 8  ██████████  Session + Runtime
-STEP 9  ██████████  SQLite memory
-STEP 10 ██████████  Retrieval gate
-STEP 11 ██████████  Robust tools
-STEP 12 ██████████  Gateway
-STEP 13 ██████████  Tracing
-STEP 14 ██████████  Evals
+Phase 1  ░░░░░░░░░░   Refactor the existing Agent Loop
+Phase 2  ░░░░░░░░░░   Make tracing first-class
+Phase 3  ░░░░░░░░░░   Build the Graph Engine
+Phase 4  ░░░░░░░░░░   Agent as Graph Node
+Phase 5  ░░░░░░░░░░   Multi-Agent Runtime
+Phase 6  ░░░░░░░░░░   Real Research Tools
+Phase 7  ░░░░░░░░░░   Skills
+Phase 8  ░░░░░░░░░░   Upgrade Memory + Eval
+Phase 9  ░░░░░░░░░░   Integrate derivative pricing models
+Phase 10 ░░░░░░░░░░   Build financial research & pricing agent
 
-## Step 13 Tracing & Step 14 Evals
 
-### Added
-- Tracing added in gateway, agent to trace USER_MESSAGE, LLM_REQUEST, LLM_RESPONSE, TOOL_START and TOOL_END.
-- Adding eval to check tools and answer for given cases.
+## Phase 1 — Refactor the existing Agent Loop
 
-### Architectural change
 
-mini_agent/
-├── llm/
-│   ├── __init__.py
-│   ├── base.py
-│   ├── minimax.py
-│   ├── openai.py
-│   └── openrouter.py
-├── eval/               ← new eval directory
-│   ├── __init__.py     ← new
-│   ├── case.py         ← new
-│   ├── cases.py        ← new
-│   └── runner.py       ← new
-├── agent.py
-├── config.py
-├── gateway.py
-├── memory.py
-├── session.py
-├── retriever.py
-├── runtime.py
-├── registry.py        
-├── main.py
-├── run_eval.py        ← new
-├── tracer.py          ← new
-└──  tools/           
-    ├── __init__.py
-    ├── time.py
-    ├── calculator.py
-    ├── save_note.py
-    └── read_note.py
 
-## Step 12 Gateway
+## Phase 2 — Make tracing first-class
 
-### Added
-- Gateway allows different LLM provider
-- Base LLM provider class
-- ToolCall class
-- LLMResponse class
-                    ┌──────────────┐
-                    │    Agent     │
-                    └──────┬───────┘
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │   Gateway    │
-                    └──────┬───────┘
-                           │
-                      BaseLLM
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-          MiniMax        OpenAI       Future...
-          Adapter        Adapter
-              │            │
-              ▼            ▼
-           MiniMax        OpenAI
 
-### Architectural change
 
-mini_agent/
-├── llm/                ← new llm directory
-│   ├── __init__.py     ← new
-│   ├── base.py         ← new
-│   ├── minimax.py      ← new
-│   ├── openai.py      ← new
-│   └── openrouter.py   ← new
-├── agent.py
-├── config.py
-├── gateway.py
-├── memory.py
-├── session.py
-├── retriever.py
-├── runtime.py
-├── registry.py        
-├── main.py
-└──  tools/           
-    ├── __init__.py
-    ├── time.py
-    ├── calculator.py
-    ├── save_note.py
-    └── read_note.py
+## Phase 3 — Build the Graph Engine
 
-## Step 11 Robust tools
 
-### Added
 
-- formal tool abstraction
-- new tools directory that contains all the tools
-- registry added new registry
-- new note database for long term memory
-- save note
-- read search note
-- robust tool execution and catch error
+## Phase 4 — Agent as Graph Node
 
-Tool
- │
- │ name
- │ description
- │ parameters
- │ execute()
- ▼
-Registry
- │
- │ name → Tool
- ▼
-Runtime
- │
- ├── locate
- ├── parse
- ├── validate
- ├── execute
- └── catch errors
- ▼
-Agent
- │
- ├── add assistant tool-call
- ├── execute tools
- ├── add tool result
- └── loop
- ▼
-MiniMax
 
-### Learned
 
-- Agent now has a standardized tool system.
-- Runtime becomes generic.
-- Function is passed in tool.
-- Save notes as long term memory.
-- Validating tool, arguments and tool execution making runtime robust and provent agent break down.
+## Phase 5 — Multi-Agent Runtime
 
-### Architectural change
 
-mini_agent/
-├── agent.py
-├── llm.py
-├── memory.py
-├── session.py
-├── retriever.py
-├── runtime.py
-├── registry.py
-├── tool.py          ← updated tool abstraction
-├── main.py
-└──  tools/           ← new tools directory
-    ├── __init__.py
-    ├── time.py
-    ├── calculator.py
-    ├── save_note.py
-    └── read_note.py
 
-## Step 10 Retrieval gate
+## Phase 6 — Real Research Tools
 
-### Added
-- Let memory retrieve, not on session.
-- Retrieve based on 1) recent N 2) keyword search
-- Retrieval gate.
 
-                       Agent
-                    /    |    \
-                   ▼     ▼     ▼
-                 LLM  Session Runtime
-                       │
-                       ▼
-                    Memory
-                       │
-                       ▼
-                     SQLite
 
-                 Agent
-                   │
-                   ▼
-                Retriever
-                   │
-                   ▼
-                Session
-Current retrieval logic
+## Phase 7 — Skills
 
-                         Agent
-                           │
-                           │ query
-                           ▼
-                      Retriever
-                     /          \
-                    /            \
-                   ▼              ▼
-              recent          keyword search
-                   │              │
-                   └──────┬───────┘
-                          ▼
-                       merge
-                          │
-                     deduplicate
-                          │
-                       sort
-                          │
-                          ▼
-                         LLM
-More on future update
-                    User query
-                        │
-                        ▼
-                   Retriever
-                        │
-             ┌──────────┴──────────┐
-             ▼                     ▼
-       Recent messages       Semantic search
-                                   │
-                                   ▼
-                              embeddings
-                                   │
-                                   ▼
-                           similarity search
-                                   │
-                                   ▼
-                              relevant memories
 
-### Learned
 
-- Memory: "What information do we have?"
-- Retriever: "What information should we use?" 
-- LLM: "What should I do with it?" 
+## Phase 8 — Upgrade Memory + Eval
 
-User
- │
- ▼
-Agent
- │
- ├── add message
- │       │
- │       ▼
- │     Session
- │       │
- │       ▼
- │     Memory
- │       │
- │       ▼
- │     SQLite
- │
- ├── Retriever
- │       │
- │       ▼
- │    relevant context
- │
- └── LLM
-         │
-         ▼
-       answer
 
-### Architectural change
 
-mini_agent/
-├── agent.py
-├── session.py
-├── memory.py
-├── retrieval.py       ← new
-├── runtime.py
-├── llm.py
-├── registry.py
-└── tool.py
-## Step 9 Memory
+## Phase 9 — Integrate derivative pricing models
 
-### Added
-- Memory class that stores sessions and messages
-- Session updated to contain messages in RAM and memory in Database
-- Reconstructed message to handle tool call
-                           Agent
-                       /      |      \
-                      ▼       ▼       ▼
-                    LLM    Session   Runtime
-                              │         │
-                              ▼         ▼
-                           Memory    Registry
-                              │         │
-                              ▼         ▼
-                           SQLite      Tool
-### Learned
 
-                         Agent
-                           │
-                           ▼
-                        Session
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-              ▼            ▼            ▼
-            User       Assistant       Tool
-           message      tool_call      result
-              │            │            │
-              └────────────┼────────────┘
-                           ▼
-                     SQLiteMemory
-                           │
-                           ▼
-                       SQLite DB
 
-LLM
-    talk to MiniMax
+## Phase 9 — Build financial research & pricing agent
 
-Agent
-    orchestrate
 
-Session
-    represent one conversation
 
-Memory
-    persist/retrieve conversation
+## Target
 
-SQLite
-    actual storage
-
-Runtime
-    execute actions
-
-Registry
-    locate tools
-
-Tool
-    perform capability
-
-Tool call message:
-{
-    "role": "assistant",
-    "content": None,
-    "tool_calls": [
-        {
-            "id": "call_123",
-            "type": "function",
-            "function": {
-                "name": "multiply",
-                "arguments": "{\"a\": 10, \"b\": 20}"
-            }
-        }
-    ]
-}
-
-### Architectural change
-mini_agent/
-├── __init__.py
-├── agent.py
-├── llm.py
-├── tool.py
-├── registry.py
-└── session.py
-└── runtime.py
-└── memory.py       ← new
-memory.db           ← new
-
-## Step 8 Session
-
-### Added
-
-- Session class that owns the message
-- Updated Agent to add session
-- LLM class wrapper
-- Runtime execution layer
-                         ┌──────────────┐
-                         │    Agent     │
-                         └──────┬───────┘
+                         ┌───────────────┐
+                         │    Gateway    │
+                         └───────┬───────┘
+                                 │
+                                 ▼
+                      ┌────────────────────┐
+                      │    Agent Runtime   │
+                      │                    │
+                      │  Run / State /     │
+                      │  Context / Trace   │
+                      └─────────┬──────────┘
                                 │
-              ┌─────────────────┼──────────────────┐
-              │                 │                  │
-              ▼                 ▼                  ▼
-          ┌────────┐       ┌─────────┐       ┌──────────┐
-          │  LLM   │       │ Session │       │ Runtime  │
-          └────────┘       └─────────┘       └────┬─────┘
-                                                   │
-                                                   ▼
-                                            ┌──────────────┐
-                                            │ ToolRegistry │
-                                            └──────┬───────┘
-                                                   │
-                                      ┌────────────┼────────────┐
-                                      ▼            ▼            ▼
-                                   ┌──────┐     ┌──────┐     ┌──────┐
-                                   │ Tool │     │ Tool │     │ Tool │
-                                   └──┬───┘     └──┬───┘     └──┬───┘
-                                      │            │            │
-                                      ▼            ▼            ▼
-                                  function     function     function
+               ┌────────────────┼────────────────┐
+               │                │                │
+               ▼                ▼                ▼
+          Single Agent      Graph Agent      Multi-Agent
+               │                │                │
+               ▼                ▼                ▼
+             Loop           Graph Engine     Agent Pool
+               │                │                │
+               └────────────────┼────────────────┘
+                                │
+                 ┌──────────────┼──────────────┐
+                 │              │              │
+                 ▼              ▼              ▼
+               Tools         Memory         Skills
+                 │              │              │
+                 └──────────────┼──────────────┘
+                                ▼
+                              Trace
+                                │
+                                ▼
+                              Eval
 
-### Learned
-- A session answers What "happened during this conversation?"
-- Agent orchestrates. Session stores state.
-- Session ID is important.
-- Session is not memory, session is just current converstaion. MEmory is long-term, persistent, across sessions.
-- Let LLM think. LLM is a desision maker
-- Runtime is a boundrary execution layer.
-LLM
-    decides
+## Original
 
-Agent
-    orchestrates the loop
-
-Runtime
-    executes actions
-
-Registry
-    finds capabilities
-
-Tool
-    performs one capability
-
-Session
-    remembers the conversation
-
-### Architectural change
-
-mini_agent/
-├── __init__.py
-├── agent.py
-├── llm.py
-├── tool.py
-├── registry.py
-└── session.py       ← new
-└── runtime.py       ← new
-
-
-## Step 7 Multiple tools
-
-### Added
-
-- Full +-*/ tools
-- Error boundary
-             Agent
-               │
-               ▼
-        ┌──────────────┐
-        │ Tool boundary│
-        └──────┬───────┘
-               │
-          Python code
-               │
-        ┌──────┴──────┐
-        │             │
-      success       failure
-        │             │
-        ▼             ▼
-     result          error
-        │             │
-        └──────┬──────┘
-               ▼
-             Agent
-
-### Learned
-
-- The model can choose from a dynamically registered set of tools, and the agent runtime doesn't need to know the individual tools.
-- The Agent does not contain special logic for each tool. Rather it calls tools on demand until no tool called.
-- Setting Error boundry: A tool failure becomes information available to the agent rather than a fatal failure of the agent itself.
-
-## Step 6 Agent loop refactor
-
-### Added
-
-- Tool dataclass
-- Tool registry give LLM schemas to choose function
-- Tools list that contains actual function
-- Agent class that replaces previous run_agent
-- Main create tools -> create registry -> create agent -> give agent user_input
-
-                  ToolRegistry
-                  /           \
-                 /             \
-                ▼               ▼
-         MiniMax schema     execution
+### Flow
+                    User
+                      │
+                      ▼
+                 Agent.run()
+                      │
+             ┌────────┴─────────┐
              │                  │
-             ▼                  ▼
-          tools=[]         registry.get()
-                                │
-                                ▼
-                              Tool
-                                │
-                                ▼
-                            function()
+          Session            Retriever
+             │                  │
+             └────────┬─────────┘
+                      ▼
+                  Gateway
+                      │
+                      ▼
+                     LLM
+                      │
+              ┌───────┴────────┐
+              │                │
+          final answer       tool call
+                                 │
+                                 ▼
+                              Runtime
+                                 │
+                                 ▼
+                              Registry
+                                 │
+                                 ▼
+                               Tool
+                                 │
+                                 ▼
+                          Tool result
+                                 │
+                                 └──────► LLM
 
-
-### Learned
-
-                    ┌──────────────┐
-                    │    main.py   │
-                    └──────┬───────┘
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │    Agent     │
-                    └──────┬───────┘
-                           │
-                 ┌─────────┴─────────┐
-                 ▼                   ▼
-            ┌─────────┐        ┌──────────┐
-            │   LLM   │        │ Registry │
-            └────┬────┘        └────┬─────┘
-                 │                  │
-                 │             ┌────┴────┐
-                 │             ▼         ▼
-                 │          Tool A     Tool B
-                 │
-                 └──────────────┐
-                                ▼
-                             response
-
-### Architectural change
+### Original architecture
 
 mini_agent/
-├── main.py
+├── agent.py
 ├── config.py
-├── llm.py
-├── tools.py
-├── tool.py          ← new
-├── registry.py      ← new
-└── agent.py         ← new
-
-## Step 5 Tool execution + argument accept
-
-### Added
-
-- Arriving at the dawn of agent loop
-- From LLM decision to tool call to result
-- Tool accept argument and saftguard
-
-### Learned
-
-Dawn of agent loop:
-
-             USER
-              │
-              ▼
-        ┌───────────┐
-        │  MiniMax  │
-        └─────┬─────┘
-              │
-          tool + arguments
-              │
-              ▼
-        ┌───────────┐
-        │  Tool Exe │
-        └─────┬─────┘
-              │
-        Python function
-              │
-              ▼
-            result
-              │
-              ▼
-        ┌───────────┐
-        │  MiniMax  │
-        └─────┬─────┘
-              │
-            answer
-              │
-              ▼
-             USER
-tool call + arguments
-                    tool_call
-                       │
-            ┌──────────┴──────────┐
-            ▼                     ▼
-          name                 arguments
-       "calculate"        '{"expression":"2+2"}'
-            │                     │
-            ▼                     ▼
-    TOOL_REGISTRY           json.loads()
-            │                     │
-            └──────────┬──────────┘
-                       ▼
-                  calculate
-                       │
-                       ▼
-             calculate(expression="2+2")
-                       │
-                       ▼
-                       4
-
-## Step 4 One tool 
-
-user → LLM → tool request → Python executes tool → LLM → answer
-
-### Added
-
-- LLM given a description of the tools
-- LLM ask tool calling
-- Python program actually calls it
-
-### Learned
-
-Three pieces of tool:
-
-                    get_time
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-      Python         Registry      Schema
-      function       lookup        LLM
-          │            │            │
-          ▼            ▼            ▼
-       executes      resolves     describes  
-
-### Architectural change
-
-my-mini-agent/
-├── pyproject.toml
-├── .env
-└── mini_agent/
+├── gateway.py
+├── memory.py
+├── session.py
+├── retriever.py
+├── runtime.py
+├── registry.py        
+├── main.py
+├── run_eval.py        
+├── tracer.py          
+├── llm/
     ├── __init__.py
-    ├── main.py
-    ├── config.py
-    ├── llm.py
-    └── tools.py       ← new
-
-## Step 3 Converstaion history 
-
-user → LLM → answer
-
-### Added
-- Working memory simple messages list 
-- System prompt
-
-## Step 1 & 2 make the LLM runnable
-
-### Baseline 
-
-- Config env LLM model and api_key
-- The smallest possible LLM wrapper
-- Runable CLI
-
-### Learned
-
-Three files to talk to LLM:
-
-1. Config file to setup LLM env
-2. LLM file to ask LLM question passing in user query directly
-3. Main file to let the dialog with LLM running infinitely.  
-
-### Baseline Architecture
-
-my-mini-agent/
-├── pyproject.toml
-├── .env
-└── waku/
+    ├── base.py
+    ├── minimax.py
+    ├── openai.py
+    └── openrouter.py
+├── eval/               
+    ├── __init__.py     
+    ├── case.py         
+    ├── cases.py        
+    └── runner.py       
+└──  tools/           
     ├── __init__.py
-    ├── config.py
-    ├── llm.py
-    └── main.py
+    ├── time.py
+    ├── calculator.py
+    ├── save_note.py
+    └── read_note.py
 
-### To run it
-uv venv
-uv pip install -e .
-uv run mini-agent

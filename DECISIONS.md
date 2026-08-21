@@ -49,3 +49,7 @@ introducing abstractions.
 
 This allows us to understand what the framework abstractions
 are hiding.
+
+## Finance research
+
+## Finance derivative pricing
