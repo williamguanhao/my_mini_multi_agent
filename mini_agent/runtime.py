@@ -8,77 +8,132 @@ class Runtime:
         self.tracer = tracer
 
     def execute(self, tool_call):
+
+        start = time.perf_counter()
+
         try:
-            # Handle both OpenAI format and custom ToolCall format
-            if hasattr(tool_call, 'function'):
-                name = tool_call.function.name
-                arguments = json.loads(tool_call.function.arguments)
-            else:
-                name = tool_call.name
-                arguments = json.loads(tool_call.arguments)
+            # ---------------------------------
+            # Normalize tool call
+            # ---------------------------------
+            
+            name, arguments = self._parse_tool_call(
+                tool_call
+            )
+
+            tool_call_id = tool_call.id
+
+            # ---------------------------------
+            # Get tool
+            # ---------------------------------
 
             tool = self.registry.get(name)
 
             if tool is None:
                 raise ValueError(
-                    f"Unknown tool: {name}"
-                )
-            
-            self._validate_arguments(
-                    tool,
-                    arguments,
+                    f"Unknown tool: {tool}"
                 )
 
+            # ---------------------------------
+            # Validate arguments
+            # ---------------------------------
+            self._validate_arguments(
+                tool,
+                arguments,
+            )
+
+            # ---------------------------------
+            # Trace start
+            # ---------------------------------
+            
             if self.tracer:
                 self.tracer.log(
                     "TOOL_START",
                     {
-                        "tool": tool_call.name,
-                        "tool_call_id": tool_call.id,
-                        "arguments": tool_call.arguments,
+                        "tool": name,
+                        "tool_call_id": tool_call_id,
+                        "arguments": arguments,
                     },
                 )
 
-            start = time.perf_counter() 
+            # ---------------------------------
+            # Execute
+            # ---------------------------------
 
             result = tool.execute(arguments)
 
-            duration = time.perf_counter() - start
+            duration = (time.perf_counter() - start)
 
+            # ---------------------------------
+            # Trace end
+            # ---------------------------------
             if self.tracer:
                 self.tracer.log(
                     "TOOL_END",
                     {
-                        "duration_ms": round(duration * 1000, 2),
-                        "tool": tool_call.name,
+                        "duration_ms": round(
+                            duration * 1000,
+                            2,
+                        ),
+                        "tool": name,
                         "success": True,
                         "content": str(result),
                     },
                 )
 
+            # ---------------------------------
+            # Normalized result
+            # ---------------------------------
+
             return {
                 "success": True,
-                "content": str(result)
+                "content": str(result),
+                "tool_call_id": tool_call_id,
+                "name": name,
+                "arguments": arguments
             }
 
         except Exception as e:
-
-            if self.tracer:
-                self.tracer.log(
-                    "TOOL_END",
-                    {
-                        "duration_ms": round(duration * 1000, 2),
-                        "tool": tool_call.name,
-                        "success": False,
-                        "content": f"Tool error: {str(e)}",
-                    },
+                duration = (
+                time.perf_counter() - start
                 )
 
-            return {
-                "success": False,
-                "content":  f"Tool error: {str(e)}"
-            }
+                # We may not have successfully parsed
+                # the tool name, so determine it safely.
+                name = self._get_tool_name(
+                    tool_call
+                )
 
+                if self.tracer:
+                    self.tracer.log(
+                        "TOOL_END",
+                        {
+                            "duration_ms": round(
+                                duration * 1000,
+                                2,
+                            ),
+                            "tool": name,
+                            "success": False,
+                            "content": f"Tool error: {str(e)}",
+                        },
+                    )
+
+                return {
+                    "success": False,
+                    "content": f"Tool error: {str(e)}",
+                    "tool_call_id": getattr(
+                        tool_call,
+                        "id",
+                        None,
+                    ),
+                    "name": name,
+                    "arguments": {},
+                }
+
+
+
+    # =====================================
+    # Tool-call normalization
+    # =====================================
 
     def _validate_arguments(self, tool, arguments):
 
@@ -139,3 +194,59 @@ class Runtime:
                     raise ValueError(
                         f"Argument '{field}' must be a boolean"
                     )
+
+    def _parse_tool_call(self, tool_call):
+
+        name = self._get_tool_name(tool_call)
+
+        raw_arguments = self._get_tool_arguments(tool_call)
+
+
+        if isinstance(raw_arguments, str):
+            arguments = json.loads(
+                raw_arguments
+            )
+        elif isinstance(raw_arguments, dict):
+            arguments = raw_arguments
+        else:
+            raise TypeError(
+                "Tool arguments must be "
+                "a JSON string or dictionary"
+            )
+
+        return name, arguments
+        
+
+    def _get_tool_name(self, tool_call):
+
+        # OpenAI-style:
+        #
+        # tool_call.function.name
+        #
+        if hasattr(tool_call, "function"):
+            return tool_call.function.name
+                 # Custom ToolCall-style:
+
+        # Custom ToolCall-style:
+        #
+        # tool_call.name
+        #
+        if hasattr(tool_call, "name"):
+            return tool_call.name
+
+        return "<unknown>"
+
+    
+    def _get_tool_arguments(self, tool_call):
+
+        # OpenAI-style
+        if hasattr(tool_call, "function"):
+            return tool_call.function.arguments
+
+        # Custom ToolCall-style
+        if hasattr(tool_call, "arguments"):
+            return tool_call.arguments
+
+        raise ValueError(
+            "Tool call does not contain arguments"
+        )
