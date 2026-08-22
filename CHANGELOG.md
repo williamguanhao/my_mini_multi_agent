@@ -1,7 +1,7 @@
 # Learning Changelog
 
 Phase 1  ██████████   Refactor the existing Agent Loop
-Phase 2  ░░░░░░░░░░   Make tracing first-class
+Phase 2  ██████████   Make tracing first-class
 Phase 3  ░░░░░░░░░░   Build the Graph Engine
 Phase 4  ░░░░░░░░░░   Agent as Graph Node
 Phase 5  ░░░░░░░░░░   Multi-Agent Runtime
@@ -18,6 +18,7 @@ Phase 10 ░░░░░░░░░░   Build financial research & pricing age
 - conver trace into event handler
 - make traces queryable and replayable instead of just logs
 - trace store in memory
+- replay trace
 
                          Agent
                            │
