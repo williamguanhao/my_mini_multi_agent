@@ -18,6 +18,8 @@ from .message_store import MessageStore
 from .event_bus import EventBus
 from .console_tracer import ConsoleTracer
 from .json_tracer import JsonTracer
+from .sqlite_trace_store import SQLiteTraceStore
+from .trace_collector import TraceCollector
 from .event_factory import EventFactory
 SYSTEM = """
     You are mini_agent, a helpful personal assistant.
@@ -39,7 +41,6 @@ def main():
     context_providor = ContextProvider(session=session, retriever=retriever)
 
     message_store = MessageStore(session=session)
-
 
     llm = MiniMaxLLM(
         api_key=API_KEY,
@@ -64,11 +65,17 @@ def main():
 
     event_bus = EventBus()
 
-    console = ConsoleTracer()
+    trace_store = SQLiteTraceStore("traces.db")
+
+    trace_collector = TraceCollector(trace_store)
+
+    console_tracer = ConsoleTracer()
 
     json_tracer = JsonTracer()
 
-    event_bus.subscribe(console)
+    event_bus.subscribe(trace_collector)
+
+    event_bus.subscribe(console_tracer)
 
     event_bus.subscribe(json_tracer)
 

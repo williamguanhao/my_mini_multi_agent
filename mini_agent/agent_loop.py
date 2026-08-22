@@ -17,6 +17,7 @@ class AgentLoop:
             message_store,
             event_bus=None,
             event_factory=None,
+            trace_collector=None,
             system_prompt=None,
             ):
         self.context_provider = context_provider
@@ -29,6 +30,7 @@ class AgentLoop:
 
         self.event_bus = event_bus
         self.event_factory = event_factory
+        self.trace_collector = trace_collector
         self.system_prompt = {
             "role": "system",
             "content": system_prompt
@@ -43,12 +45,6 @@ class AgentLoop:
 
         run_id = str(uuid.uuid4())
 
-        trace = RunTrace(
-            run_id=run_id,
-            input=user_input,
-            started_at=time.time()
-        )
-
         state = AgentState(
             user_input=user_input
         )
@@ -59,12 +55,7 @@ class AgentLoop:
 
             if self.event_bus:
 
-                self.event_bus.start_trace(
-                    run_id,
-                    user_input,
-                )
-
-                self.event_bus.publish(
+                self._publish(
                     self.event_factory.run_start(
                         run_id,
                         user_input,                        
@@ -74,7 +65,7 @@ class AgentLoop:
             for step in range(max_steps):
                 state.step = step + 1
 
-                self.event_bus.publish(
+                self._publish(
                     self.event_factory.step_started(
                         run_id,
                         state.step,
@@ -99,7 +90,7 @@ class AgentLoop:
                 # Model
                 # -------------------------
 
-                self.event_bus.publish(
+                self._publish(
                     self.event_factory.model_called(
                         run_id,
                         state.step,
@@ -113,7 +104,7 @@ class AgentLoop:
                     )
                 )
 
-                self.event_bus.publish(
+                self._publish(
                     self.event_factory.model_completed(
                         run_id,
                         len(response.tool_calls),
@@ -142,100 +133,112 @@ class AgentLoop:
                     )
                 
                 # -------------------------
-                # Tools
+                # Execute tools
                 # -------------------------
 
                 for tool_call in response.tool_calls:
 
-                    tool_started = (
-                        self.event_factory.tool_started(
-                            run_id,
-                            tool_call.name,
-                            state.step,
-                        )
-                    )
-
-                    self.event_bus.publish(
-                        tool_started
-                    )
-
-                    result = (
-                        self.tool_executor.execute(
-                            tool_call
-                        )
-                    )
-
-                    self.event_bus.publish(
-                        self.event_factory.tool_completed(
-                            run_id,
-                            result.name,
-                            result.success,
-                            state.step,
-                            tool_started.event_id
-                        )
-                    )
-
-                    state.tool_calls.append(
-                        {
-                            "tool_call_id": (
-                                result.tool_call_id
-                            ),
-                            "name": result.name,
-                            "arguments": (
-                                result.arguments
-                            ),
-                            "content": result.content,
-                            "success": result.success,
-                        }
-                    )
-                    self.message_store.add_tool(
-                        tool_call_id = (
-                            result.tool_call_id
-                        ),
-                        tool_name = result.name,
-                        content = result.content,
-                    )
+                    self._execute_tool(
+                        tool_call=tool_call,
+                        state=state,
+                        run_id=run_id,
+                        step=step,
+                    ) 
 
             # --------------------------------
-            # Maximum iteration reached
+            # Maximum steps reached
             # --------------------------------
-            return AgentResult(
-                output=None,
-                status="max_steps",
-                iterations=state.step,
-                tool_calls=state.tool_calls,
+            return self._max_steps(
                 state=state,
+                run_id=run_id,
+                max_steps=max_steps,
             )
 
         # --------------------------------
         # Tool exception
         # --------------------------------
-        except Exception as e:
+        except Exception as error:
 
-            state.error = e
+            self._fail(
+                state=state,
+                run_id=run_id,
+                error=error
+            )
+        
+    # =========================================================
+    # Failure
+    # =========================================================
 
-            if self.event_bus:
+    def _fail(
+            self,
+            state: AgentState,
+            run_id: str,
+            error: Exception,
+    ) -> AgentResult:
 
-                self.event_bus.publish(
-                    self.event_factory.run_failed(
-                        run_id,
-                        e,
-                    )
-                )
+        state.error = error,
 
-                trace = self.event_bus.get_trace(run_id)
+        self._publish(
+            self.event_factory.run_failed(
+                run_id,
+                error
+            )
+        )
 
-                if trace:
-                    trace.fail(e)
-
-            return AgentResult(
+        return AgentResult(
                 output=None,
                 status="error",
                 iterations=state.step,
                 tool_calls=state.tool_calls,
                 state=state,
-                error=e,
+                error=error,
             ) 
+
+    # =========================================================
+    # Max steps
+    # =========================================================
+
+    def _max_steps(
+        self,
+        state: AgentState,
+        run_id: str,
+        max_steps: int,
+    ) -> AgentResult:
+
+        state.finished = True
+
+        output = (
+            f"Agent stopped after "
+            f"{max_steps} steps."
+        )
+
+        state.final_output = output
+
+        self._publish(
+            self.event_factory.run_completed(
+                run_id,
+                output,
+            )
+        )
+
+        return AgentResult(
+            output=output,
+            status="max_steps",
+            iterations=state.step,
+            tool_calls=state.tool_calls,
+            state=state,
+        )
+
+    # =========================================================
+    # Event publishing
+    # =========================================================
+
+    def _publish(self, event):
+
+        if self.event_bus is None:
+            return
+        
+        self.event_bus.publish(event)
 
     # --------------------------------
     # A clean termination point
@@ -252,31 +255,12 @@ class AgentLoop:
         state.final_output = output
 
         if self.event_bus and run_id:
-            self.event_bus.publish(
+            self._publish(
                 self.event_factory.run_completed(
                     run_id,
                     output,
                 )
             )
-
-            trace = self.event_bus.get_trace(run_id)
-            
-            if trace:
-                trace.complete(output)
-
-            for event in trace.events:
-                print(
-                    event.sequence,
-                    event.event_type,
-                    event.step,
-                )
-
-            print(
-                json.dumps(
-                    trace.to_dict(),
-                    indent=2,
-                    )
-                )
         
         return AgentResult(
             output=output,
@@ -284,4 +268,113 @@ class AgentLoop:
             iterations=state.step,
             tool_calls=state.tool_calls,
             state=state,
+        )
+    
+    # =========================================================
+    # Tool execution
+    # =========================================================
+
+    def _execute_tool(
+            self,
+            tool_call,
+            state: AgentState,
+            run_id: str,
+            step: int,
+            ):
+
+            tool_name = self._tool_name(tool_call)
+
+            tool_started = (
+                self.event_factory.tool_started(
+                    run_id,
+                    tool_name,
+                    state.step,
+                )
+            )
+
+            self._publish(
+                tool_started
+            )
+
+            result = (
+                self.tool_executor.execute(
+                    tool_call
+                )
+            )
+
+
+
+            state.tool_calls.append(
+                {
+                    "tool_call_id": result.tool_call_id,
+                    "name": result.name,
+                    "arguments": result.arguments,
+                    "content": result.content,
+                    "success": result.success,
+                }
+            )
+
+            self._publish(
+                self.event_factory.tool_completed(
+                    run_id,
+                    result.name,
+                    result.success,
+                    state.step,
+                    tool_started.event_id
+                )
+            )
+
+
+            self.message_store.add_tool(
+                tool_call_id = result.tool_call_id,
+                tool_name = result.name,
+                content = result.content,
+            )
+
+    # =========================================================
+    # Tool name normalization
+    # =========================================================
+
+    @staticmethod
+    def _tool_name(tool_call) -> str:
+
+        # OpenAI-style:
+        #
+        # tool_call.function.name
+        #
+
+        function = getattr(
+            tool_call,
+            "function",
+            None,
+        )
+
+        if function is not None:
+
+            name = getattr(
+                function,
+                "name",
+                None,
+            )
+
+            if name:
+                return name
+
+        # Custom style:
+        #
+        # tool_call.name
+        #
+
+        name = getattr(
+            tool_call,
+            "name",
+            None,
+        )
+
+        if name:
+            return name
+
+        raise ValueError(
+            "Tool call does not contain "
+            "a tool name."
         )

@@ -16,27 +16,43 @@ Phase 10 ░░░░░░░░░░   Build financial research & pricing age
 ### Added
 - trace each event that loop emits
 - conver trace into event handler
-- Make traces queryable and replayable instead of just logs
+- make traces queryable and replayable instead of just logs
+- trace store in memory
+
+                         Agent
+                           │
+                           ▼
+                      AgentLoop
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+          ▼                ▼                ▼
+ ContextProvider      ModelClient        Runtime
+          │                │                │
+          │                │                ▼
+          │                │             Registry
+          │                │
+          └────────────────┘
+                   │
+                   ▼
+             MessageStore
+
 
 AgentLoop
     │
+    │ publishes events
     ▼
-EventBus
+ EventBus
     │
-    ├── ConsoleTracer
-    ├── JsonTracer
-    ├── SQLiteTracer
-    └── Dashboard
-
-                    RunTrace
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-          metadata            events[]
-                                  │
-             ┌────────────────────┼───────────────┐
-             ▼                    ▼               ▼
-        model_called       tool_started    tool_completed
+    ├───────────────┬─────────────────┐
+    ▼               ▼                 ▼
+ConsoleTracer   JsonTracer      TraceCollector
+                                      │
+                                      ▼
+                                  RunTrace
+                                      │
+                                      ▼
+                              SQLiteTraceStore
 
 - Structured trace
     {
@@ -51,7 +67,7 @@ EventBus
         "tool": "calculator"
       }
     },
-    
+
     {
       "event_id": "7036ef54-a4f4-4124-ac20-78c0b85c893b",
       "event_type": "tool_completed",
@@ -64,6 +80,28 @@ EventBus
         "tool": "calculator",
         "success": true
     },
+
+- trace stored
+runs
+│
+├── run_id
+├── input
+├── started_at
+├── ended_at
+├── status
+├── output
+└── metadata
+
+events
+│
+├── event_id
+├── run_id
+├── event_type
+├── timestamp
+├── sequence
+├── step
+├── parent_event_id
+└── payload
 
 ### Learned
 

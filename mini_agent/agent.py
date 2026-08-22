@@ -4,7 +4,6 @@ from .session import Session
 from .runtime import Runtime
 from .retrieval import Retriever
 from .gateway import Gateway
-from .tracer import Tracer
 from .agent_loop import AgentLoop
 SYSTEM = """
     You are mini_agent, a helpful personal assistant.
