@@ -1,11 +1,10 @@
 from .agent_state import AgentState
 from .agent_result import AgentResult
-from .context import ContextProvider
-from .model import ModelClient
-from .tool_executor import ToolExecutor
-from .message_store import MessageStore
-from .events import RunStarted
+from .tracer import RunTrace
+
 import uuid
+import time
+import json
 class AgentLoop:
 
     def __init__(
@@ -44,26 +43,44 @@ class AgentLoop:
 
         run_id = str(uuid.uuid4())
 
+        trace = RunTrace(
+            run_id=run_id,
+            input=user_input,
+            started_at=time.time()
+        )
+
         state = AgentState(
             user_input=user_input
         )
 
         try:
+
             self.message_store.add_user(user_input)
+
             if self.event_bus:
+
+                self.event_bus.start_trace(
+                    run_id,
+                    user_input,
+                )
+
                 self.event_bus.publish(
-                    self.event_factory.run_started(
+                    self.event_factory.run_start(
                         run_id,
-                        user_input,
+                        user_input,                        
                     )
                 )
 
             for step in range(max_steps):
                 state.step = step + 1
-                self.event_factory.step_started(
-                    run_id,
-                    step+1,
+
+                self.event_bus.publish(
+                    self.event_factory.step_started(
+                        run_id,
+                        state.step,
+                    )
                 )
+
                 # -------------------------
                 # Context
                 # -------------------------
@@ -84,7 +101,8 @@ class AgentLoop:
 
                 self.event_bus.publish(
                     self.event_factory.model_called(
-                        run_id
+                        run_id,
+                        state.step,
                     )
                 )
 
@@ -99,6 +117,7 @@ class AgentLoop:
                     self.event_factory.model_completed(
                         run_id,
                         len(response.tool_calls),
+                        state.step,
                         )
                     )
 
@@ -116,15 +135,10 @@ class AgentLoop:
 
                 if not response.tool_calls:
 
-                    self.event_bus.publish(
-                        self.event_factory.run_completed(
-                            run_id
-                        )
-                    )
-
                     return self._complete(
                         state,
                         response.content,
+                        run_id,
                     )
                 
                 # -------------------------
@@ -133,11 +147,16 @@ class AgentLoop:
 
                 for tool_call in response.tool_calls:
 
-                    self.event_bus.publish(
+                    tool_started = (
                         self.event_factory.tool_started(
                             run_id,
                             tool_call.name,
+                            state.step,
                         )
+                    )
+
+                    self.event_bus.publish(
+                        tool_started
                     )
 
                     result = (
@@ -151,6 +170,8 @@ class AgentLoop:
                             run_id,
                             result.name,
                             result.success,
+                            state.step,
+                            tool_started.event_id
                         )
                     )
 
@@ -185,17 +206,27 @@ class AgentLoop:
                 tool_calls=state.tool_calls,
                 state=state,
             )
-        
+
+        # --------------------------------
+        # Tool exception
+        # --------------------------------
         except Exception as e:
 
             state.error = e
 
-            self.event_bus.publish(
-                self.event_factory.run_failed(
-                    run_id,
-                    e,
+            if self.event_bus:
+
+                self.event_bus.publish(
+                    self.event_factory.run_failed(
+                        run_id,
+                        e,
+                    )
                 )
-            )
+
+                trace = self.event_bus.get_trace(run_id)
+
+                if trace:
+                    trace.fail(e)
 
             return AgentResult(
                 output=None,
@@ -214,10 +245,39 @@ class AgentLoop:
         self,
         state: AgentState,
         output: str | None,
+        run_id=None
     ) -> AgentResult:
+        
         state.finished = True
         state.final_output = output
 
+        if self.event_bus and run_id:
+            self.event_bus.publish(
+                self.event_factory.run_completed(
+                    run_id,
+                    output,
+                )
+            )
+
+            trace = self.event_bus.get_trace(run_id)
+            
+            if trace:
+                trace.complete(output)
+
+            for event in trace.events:
+                print(
+                    event.sequence,
+                    event.event_type,
+                    event.step,
+                )
+
+            print(
+                json.dumps(
+                    trace.to_dict(),
+                    indent=2,
+                    )
+                )
+        
         return AgentResult(
             output=output,
             status="completed",

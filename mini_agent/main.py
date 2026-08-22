@@ -11,7 +11,6 @@ from .memory import SQLiteMemory
 from .config import API_KEY, MODEL, BASE_URL
 from .retrieval import Retriever
 from .gateway import Gateway
-from .tracer import Tracer
 from .context import ContextProvider
 from .model import ModelClient
 from .tool_executor import ToolExecutor
@@ -41,13 +40,12 @@ def main():
 
     message_store = MessageStore(session=session)
 
-    tracer = Tracer()
 
     llm = MiniMaxLLM(
         api_key=API_KEY,
         model=MODEL)
 
-    gateway = Gateway(llm=llm, tracer=tracer)
+    gateway = Gateway(llm=llm)
 
     model_client = ModelClient(gateway=gateway)
 
@@ -60,7 +58,7 @@ def main():
 
     registry = ToolRegistry(tools)
 
-    runtime = Runtime(registry=registry, tracer=tracer)
+    runtime = Runtime(registry=registry)
 
     tool_executor = ToolExecutor(runtime=runtime)
 

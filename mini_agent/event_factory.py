@@ -1,81 +1,95 @@
 import time
 import uuid
 
-from .events import *
+from .events import Event
 
 
 class EventFactory:
 
-    def __init__(self):
-        pass
+    def create(
+            self,
+            event_type: str,
+            run_id: str,
+            *,
+            step: int | None = None,
+            parent_event_id: str | None = None,
+            payload:dict | None = None,
+        ) -> Event:
 
-    def run_started(
-        self,
-        run_id,
-        user_input,
-    ):
-
-        return RunStarted(
-            event_type="run_started",
-            timestamp=time.time(),
+        return Event(
+            event_type=event_type,
             run_id=run_id,
+            timestamp=time.time(),
+            event_id=str(uuid.uuid4()),
+            step=step,
+            parent_event_id=parent_event_id,
+            payload=payload or {},
+        )
+
+    def run_start(
+            self,
+            run_id,
+            user_input,
+        ):
+
+        return self.create(
+            "run_started",
+            run_id,
             payload={
-                "input": user_input,
+                "input": user_input
             },
         )
 
     def step_started(
-        self,
-        run_id,
-        step,
-    ):
+            self,
+            run_id,
+            step,
+        ):
 
-        return StepStarted(
-            event_type="step_started",
-            timestamp=time.time(),
-            run_id=run_id,
-            payload={
-                "step": step,
-            },
+        return self.create(
+            "step_started",
+            run_id,
+            step=step,
         )
 
     def model_called(
         self,
         run_id,
+        step=None,
     ):
 
-        return ModelCalled(
-            event_type="model_called",
-            timestamp=time.time(),
-            run_id=run_id,
-            payload={},
+        return self.create(
+            "model_called",
+            run_id,
+            step=step,
         )
 
     def model_completed(
         self,
         run_id,
         tool_calls,
+        step=None,
     ):
-
-        return ModelCompleted(
-            event_type="model_completed",
-            timestamp=time.time(),
-            run_id=run_id,
+        return self.create(
+            "model_completed",
+            run_id,
+            step=step,     
             payload={
                 "tool_calls": tool_calls,
-            },
+            },       
         )
 
     def tool_started(
         self,
         run_id,
         tool_name,
+        step=None,
     ):
 
-        return ToolStarted(
-            event_type="tool_started",
-            timestamp=time.time(),
-            run_id=run_id,
+        return self.create(
+            "tool_started",
+            run_id,
+            step=step,
             payload={
                 "tool": tool_name,
             },
@@ -86,12 +100,15 @@ class EventFactory:
         run_id,
         tool_name,
         success,
+        step=None,
+        parent_event_id=None,
     ):
 
-        return ToolCompleted(
-            event_type="tool_completed",
-            timestamp=time.time(),
-            run_id=run_id,
+        return self.create(
+            "tool_completed",
+            run_id,
+            step=step,
+            parent_event_id=parent_event_id,
             payload={
                 "tool": tool_name,
                 "success": success,
@@ -101,13 +118,15 @@ class EventFactory:
     def run_completed(
         self,
         run_id,
+        output=None,
     ):
 
-        return RunCompleted(
-            event_type="run_completed",
-            timestamp=time.time(),
-            run_id=run_id,
-            payload={},
+        return self.create(
+            "run_completed",
+            run_id,
+            payload={
+                "output": output,
+            },
         )
 
     def run_failed(
@@ -116,10 +135,9 @@ class EventFactory:
         error,
     ):
 
-        return RunFailed(
-            event_type="run_failed",
-            timestamp=time.time(),
-            run_id=run_id,
+        return self.create(
+            "run_failed",
+            run_id,
             payload={
                 "error": str(error),
             },

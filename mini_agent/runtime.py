@@ -4,9 +4,8 @@ from .tool_result import ToolResult
 
 class Runtime:
 
-    def __init__(self, registry, tracer=None):
+    def __init__(self, registry):
         self.registry = registry
-        self.tracer = tracer
 
     def execute(self, tool_call) -> ToolResult:
 
@@ -42,19 +41,6 @@ class Runtime:
                 arguments,
             )
 
-            # ---------------------------------
-            # Trace start
-            # ---------------------------------
-            
-            if self.tracer:
-                self.tracer.log(
-                    "TOOL_START",
-                    {
-                        "tool": name,
-                        "tool_call_id": tool_call_id,
-                        "arguments": arguments,
-                    },
-                )
 
             # ---------------------------------
             # Execute
@@ -64,24 +50,6 @@ class Runtime:
 
             duration = (time.perf_counter() - start)
 
-            # ---------------------------------
-            # Trace end
-            # ---------------------------------
-            if self.tracer:
-                self.tracer.log(
-                    "TOOL_END",
-                    {
-                        "duration_ms": round(
-                            duration * 1000,
-                            2,
-                        ),
-                        "tool": name,
-                        "tool_call_id": tool_call_id,
-                        "arguments": arguments,
-                        "success": True,
-                        "content": str(result),
-                    },
-                )
 
             # ---------------------------------
             # Normalized result
@@ -107,21 +75,6 @@ class Runtime:
                     tool_call
                 )
 
-                if self.tracer:
-                    self.tracer.log(
-                        "TOOL_END",
-                        {
-                            "duration_ms": round(
-                                duration * 1000,
-                                2,
-                            ),
-                            "tool": name,
-                            "tool_call_id": tool_call_id,
-                            "arguments": arguments,
-                            "success": False,
-                            "content": f"Tool error: {str(e)}",
-                        },
-                    )
 
                 return ToolResult(
                     tool_call_id = getattr(

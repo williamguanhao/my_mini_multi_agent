@@ -1,52 +1,41 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 import time
 import uuid
 
 
+
 @dataclass
 class Event:
     event_type: str
-    timestamp: float
     run_id: str
-    payload: dict[str, Any]
 
+    timestamp: float = field(
+        default_factory=time.time
+    )
 
-@dataclass
-class RunStarted(Event):
-    pass
+    event_id: str = field(
+        default_factory=lambda: str(uuid.uuid4())
+    )
 
+    sequence: int = 0
 
-@dataclass
-class StepStarted(Event):
-    pass
+    step: int | None = None
 
+    parent_event_id: str | None = None
 
-@dataclass
-class ModelCalled(Event):
-    pass
+    payload: dict[str, Any] = field(
+        default_factory=dict
+    )
 
-
-@dataclass
-class ModelCompleted(Event):
-    pass
-
-
-@dataclass
-class ToolStarted(Event):
-    pass
-
-
-@dataclass
-class ToolCompleted(Event):
-    pass
-
-
-@dataclass
-class RunCompleted(Event):
-    pass
-
-
-@dataclass
-class RunFailed(Event):
-    pass
+    def to_dict(self):
+        return {
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "run_id": self.run_id,
+            "timestamp": self.timestamp,
+            "sequence": self.sequence,
+            "step": self.step,
+            "parent_event_id": self.parent_event_id,
+            "payload": self.payload,
+        }

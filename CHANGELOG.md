@@ -17,6 +17,7 @@ Phase 10 ░░░░░░░░░░   Build financial research & pricing age
 - trace each event that loop emits
 - conver trace into event handler
 - Make traces queryable and replayable instead of just logs
+
 AgentLoop
     │
     ▼
@@ -26,6 +27,43 @@ EventBus
     ├── JsonTracer
     ├── SQLiteTracer
     └── Dashboard
+
+                    RunTrace
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+          metadata            events[]
+                                  │
+             ┌────────────────────┼───────────────┐
+             ▼                    ▼               ▼
+        model_called       tool_started    tool_completed
+
+- Structured trace
+    {
+      "event_id": "2d4f79a6-6b87-4e70-b414-68052ca24e19",
+      "event_type": "tool_started",
+      "run_id": "af1f643c-6b40-4a89-9908-e75c49d3bda2",
+      "timestamp": 1787406058.856359,
+      "sequence": 4,
+      "step": 1,
+      "parent_event_id": null,
+      "payload": {
+        "tool": "calculator"
+      }
+    },
+    
+    {
+      "event_id": "7036ef54-a4f4-4124-ac20-78c0b85c893b",
+      "event_type": "tool_completed",
+      "run_id": "af1f643c-6b40-4a89-9908-e75c49d3bda2",
+      "timestamp": 1787406058.856606,
+      "sequence": 5,
+      "step": 1,
+      "parent_event_id": "2d4f79a6-6b87-4e70-b414-68052ca24e19",
+      "payload": {
+        "tool": "calculator",
+        "success": true
+    },
 
 ### Learned
 
@@ -81,7 +119,7 @@ mini_agent/
           ├── cases.py
           ├── runEval.py
           └── runner.py
-          
+
 ## Phase 1 — Refactor the existing Agent Loop
 
 ### Added
