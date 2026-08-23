@@ -11,6 +11,88 @@ Phase 8  ░░░░░░░░░░   Upgrade Memory + Eval
 Phase 9  ░░░░░░░░░░   Integrate derivative pricing models
 Phase 10 ░░░░░░░░░░   Build financial research & pricing agent
 
+## Phase 3 — Build the Graph Engine
+
+### Added
+- Graph Engine
+- Routing
+
+                         GRAPH
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+             ▼             ▼             ▼
+          NODE A        NODE B        NODE C
+             │             │             │
+             └─────────────┼─────────────┘
+                           │
+                         EDGES
+                           │
+              determines movement
+                           │
+                           ▼
+                     GRAPH STATE
+                           │
+               stores execution data
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+          question      research      analysis
+
+                 ┌───────────────────┐
+                 │   Current State   │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │    NODE     │
+                    │             │
+                    │ execute()   │
+                    └──────┬──────┘
+                           │
+                     updates state
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │   Updated State   │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │    EDGE     │
+                    │             │
+                    │ route based │
+                    │ on state     │
+                    └──────┬──────┘
+                           │
+                           ▼
+                    Next Node
+                           │
+                           └───────────┐
+                                       │
+                                       ▼
+                               Current State
+
+AgentNode
+    │
+    └── updates State
+
+Router
+    │
+    └── interprets State
+
+Graph
+    │
+    └── maps route → Node
+
+Executor
+    │
+    └── executes it
+
+### Learned
+
+### Structural change
+
 ## Phase 2 — Make tracing first-class
 
 ### Added
