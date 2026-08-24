@@ -1,8 +1,11 @@
+import argparse
+
 from .tools.time import GetTimeTool
 from .tools.save_note import SaveNoteTool
 from .tools.calculator import CalculatorTool
 from .tools.read_notes import ReadNotesTool
 from .agent import Agent
+from .graph_agent import GraphAgent
 from .registry import ToolRegistry
 from .llm.minimax import MiniMaxLLM
 from .session import Session
@@ -31,6 +34,18 @@ SYSTEM = """
 """
 
 def main():
+
+    parser = argparse.ArgumentParser(
+        description="mini_agent CLI",
+    )
+    parser.add_argument(
+        "--engine",
+        choices=("loop", "graph"),
+        default="loop",
+        help="Agent engine: 'loop' (default) uses AgentLoop; "
+             "'graph' uses the graph-based GraphAgent.",
+    )
+    args = parser.parse_args()
 
     memory = SQLiteMemory()
 
@@ -81,29 +96,43 @@ def main():
 
     event_factory = EventFactory()
 
-    agent = Agent(
+    common_kwargs = dict(
         context_provider=context_providor,
         model_client=model_client,
         tool_executor=tool_executor,
         registry=registry,
-        session=session,
         message_store=message_store,
         event_bus=event_bus,
         event_factory=event_factory,
-        system_prompt=SYSTEM
+        system_prompt=SYSTEM,
     )
+
+    if args.engine == "loop":
+        agent = Agent(**common_kwargs, session=session)
+    else:
+        agent = GraphAgent(**common_kwargs)
 
     # -------------------------
     # Chat loop
     # -------------------------
-    
+
     while True:
         user_input = input("you > ")
 
         if user_input in {"quit", "exit"}:
             break
 
-        answer = agent.run(user_input)
+        if args.engine == "loop":
+            try:
+                answer = agent.run(user_input)
+            except Exception as e:
+                answer = f"[error] {e}"
+        else:
+            result = agent.run(user_input)
+            if result.status == "error":
+                answer = f"[error] {result.error}"
+            else:
+                answer = result.output or ""
 
         print(f"mini_agent > {answer}")
 

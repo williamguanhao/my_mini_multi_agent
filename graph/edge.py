@@ -5,7 +5,7 @@ from typing import Callable
 class Edge:
     source: str
     target: str
-    route: str | None = None,
+    route: str | None = None
     name: str | None = None
     condition: Callable | None = None
 

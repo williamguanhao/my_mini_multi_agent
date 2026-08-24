@@ -45,7 +45,7 @@ class Graph:
             self,
             source: str,
             target: str,
-            route: str,
+            route: str | None = None,
             name: str | None=None,
             condition=None,
     ):

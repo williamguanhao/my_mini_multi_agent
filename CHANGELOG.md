@@ -2,7 +2,7 @@
 
 Phase 1  ██████████   Refactor the existing Agent Loop
 Phase 2  ██████████   Make tracing first-class
-Phase 3  ░░░░░░░░░░   Build the Graph Engine
+Phase 3  ██████████   Build the Graph Engine
 Phase 4  ░░░░░░░░░░   Agent as Graph Node
 Phase 5  ░░░░░░░░░░   Multi-Agent Runtime
 Phase 6  ░░░░░░░░░░   Real Research Tools
@@ -74,20 +74,44 @@ Phase 10 ░░░░░░░░░░   Build financial research & pricing age
                                Current State
 
 AgentNode
-    │
-    └── updates State
+ └── does one unit of work
 
 Router
-    │
-    └── interprets State
+ └── decides what happens next
 
-Graph
-    │
-    └── maps route → Node
+Edge
+ └── connects things
 
-Executor
-    │
-    └── executes it
+GraphExecutor
+ └── controls execution
+
+GraphState
+ └── carries information
+
+EventBus / RunTrace
+ └── observes execution
+
+Changing from 
+
+Agent
+ │
+ └── AgentLoop
+      │
+      ├── think
+      ├── act
+      ├── observe
+      └── repeat
+
+to Now
+
+GraphExecutor
+ │
+ └── AgentGraph
+      │
+      ├── AgentNode
+      ├── Router
+      ├── ToolNode
+      └── Edge → AgentNode
 
 ### Learned
 

@@ -182,14 +182,14 @@ class EventFactory:
         self,
         run_id,
         node_name,
-        step,
+        state,
         error,
     ):
 
         return self.create(
-            "run_failed",
+            "node_failed",
             run_id,
-            step=step,
+            step=state.step,
             payload={
                 "node_name": node_name,
                 "error": str(error),
@@ -203,6 +203,7 @@ class EventFactory:
         target: str,
         step: int,
         condition=None,
+        route: str | None = None,
     ):
         return self.create(
             event_type="edge_traversed",
@@ -212,6 +213,7 @@ class EventFactory:
                 "source": source,
                 "target": target,
                 "condition": condition,
+                "route": route,
             },
     )
 

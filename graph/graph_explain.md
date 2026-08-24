@@ -118,6 +118,8 @@ There's also bookkeeping fields:
 
 `state.get(key, default)` and `state.set(key, value)` are conveniences for `state.values`.
 
+There's also a `snapshot()` method that returns a plain `dict` view of the current state — used by the executor to compute state-diffs between node executions.
+
 ---
 
 ### 1.4 `Router` — the decision-maker (`router.py`)
@@ -186,7 +188,7 @@ graph.add_node("act",   ActNode(tools))
 
 The `name` is just a label. The `node` is whatever object has an `execute(state)` method.
 
-### 2.2 `add_edge(source, target, route, name=None, condition=None)` — draw an arrow
+### 2.2 `add_edge(source, target, route=None, name=None, condition=None)` — draw an arrow
 
 ```python
 graph.add_edge("think", "act", route="tool")
@@ -194,17 +196,20 @@ graph.add_edge("think", "act", route="tool")
 
 That says: "draw an arrow from `think` to `act`. Tag it with route-name `tool`."
 
-In the current code, `route` is **required**. The signature is:
+The current signature is:
 
 ```python
-def add_edge(self, source, target, route, name=None, condition=None):
+def add_edge(self, source, target, route=None, name=None, condition=None):
 ```
 
-If you want a "skip-the-decision, always go here" arrow (like `START → think`), you still have to provide a `route`:
+`route` is **optional**. If a node has only one outgoing arrow, you can omit `route` and the executor will follow it unconditionally — handy for plain `START → first_node` and `last_node → END` arrows:
 
 ```python
-graph.add_edge(Graph.START, "think", route="entry")
+graph.add_edge(Graph.START, "think")          # implicit "entry" route
+graph.add_edge("answer", Graph.END)           # implicit "finish" route
 ```
+
+When a node has multiple outgoing arrows, you must either give them distinct `route=` tags (and register a `Router`) or use `condition=` lambdas on each edge.
 
 ### 2.3 `add_conditional_edges(source, router, routes)` — bundle several arrows under a router
 
@@ -282,7 +287,7 @@ If `source` has **no** router registered, `self._routers[source]` raises `KeyErr
 
 2. **Decision logic is isolated.** The router is one tiny function. Test it independently. Swap `FunctionRouter` for an LLM-backed router later without touching any node.
 
-3. **The same graph can be observed from outside.** Every node start/end and every edge traversal publishes an event (`_node_started`, `_edge_traversed`, etc.). That's why the executor takes `event_bus` and `event_factory` — it's how the existing trace system plugs into the graph without the graph knowing about it.
+3. **The same graph can be observed from outside.** Every node start/end and every edge traversal publishes an event (`_node_started`, `_node_completed`, `_node_failed`, `_edge_traversed`). That's why the executor takes `event_bus` and `event_factory` — it's how the existing trace system plugs into the graph without the graph knowing about it. After each node runs, the executor calls `state.snapshot()` before and after, then `state_diff.diff_states(before, after)` to produce a `{added, removed, changed}` dict that rides along on the `node_completed` event. On exception, `_node_failed` fires before the exception re-raises; the executor does **not** swallow it — the caller sees the error.
 
 ---
 
@@ -346,4 +351,41 @@ assert edge.name   == "tool"      # and is tagged "tool"
 | Pick among A→B / A→C / A→END based on state | `graph.add_conditional_edges(A, Router(...), {"b": B, "c": C, "end": END})` |
 | Run the whole picture | `GraphExecutor().run(graph, state, run_id="...")` |
 
-That's the whole design. Five small files, one mental model.
+That's the whole design. Five small files, one mental model, plus a real consumer (`GraphAgent`) on top.
+
+---
+
+## 7. What actually uses this (the ReAct agent)
+
+The graph engine isn't an academic exercise — it's wired into a real agent. `mini_agent/graph_agent.py` is a `GraphAgent` whose control flow is a graph instead of a hand-written loop:
+
+```
+__start__ ──► think ──[tool]──► act ──► think   (loop while LLM keeps calling tools)
+                │
+                └─[answer]─► answer ──► __end__
+```
+
+Three nodes:
+- `ThinkNode` — calls the model. Publishes `step_started` / `model_called` / `model_completed`. Writes a `decision` (either `{"type": "tool", "calls": [...]}` or `{"type": "answer", "content": "..."}`) into `state.values`.
+- `ActNode` — reads the decision; if it's a tool call, runs each tool via `tool_executor` and publishes `tool_started` / `tool_completed`. Mirrors `AgentLoop._tool_name` so it accepts both OpenAI-style (`.function.name`) and custom-style (`.name`) tool calls.
+- `AnswerNode` — copies the final content into `state.values["final_output"]`.
+
+A `FunctionRouter` on `think` decides between the two arrows based on `decision.type`.
+
+`GraphAgent.run()` returns the same `AgentResult` shape as the loop-based `Agent.run()` (`output`, `status`, `iterations`, `tool_calls`, `state`, `error`) — that's how `mini_agent/main.py`'s `--engine {loop,graph}` flag can swap between the two without any caller-visible difference.
+
+For full per-step observability, see `tests/test_graph_agent.py` (end-to-end with fake LLM and tool executor).
+
+---
+
+## 8. What lives outside the graph (but it depends on)
+
+The `graph/` package is intentionally framework-agnostic — no imports of `mini_agent` inside it. The dependencies flow one way:
+
+- `mini_agent/graph_agent.py` → uses `graph.{node, graph, state, router, executor}` to build and run the agent
+- `mini_agent/event_factory.py` → defines the `node_started` / `node_completed` / `node_failed` / `edge_traversed` event shapes the executor publishes
+- `mini_agent/retrieval.py` → not graph-related, but is the consumer that hands a clean message sequence to the LLM (it filters orphan `assistant(tool_calls)` blocks so the API doesn't reject them with `400 — tool call result does not follow tool call`)
+- `tests/test_graph_agent.py` → end-to-end test of `GraphAgent` with fakes
+- `tests/test_graph_executor.py` → executor termination behavior (no `Unknown node: __end__` regression)
+- `tests/test_react_graph.py` → a hand-rolled ReAct graph proving the engine handles conditional edges and tool-result observation
+- `tests/test_retrieval.py` → regression coverage for the orphan-tool-call filter

@@ -150,11 +150,10 @@ class GraphExecutor:
         if self.event_factory is None:
             return
 
-        event = ( 
+        event = (
                 self.event_factory.node_started(
                 run_id=run_id,
                 node_name=node.name,
-                state= state,
                 state=state,
             )
         )
@@ -166,7 +165,7 @@ class GraphExecutor:
             run_id,
             node,
             state,
-            state_diff,
+            state_diff
     ):
         if self.event_factory is None:
             return
@@ -198,6 +197,27 @@ class GraphExecutor:
                 target=edge.target,
                 step=state.step,
                 route=edge.name,
+            )
+        )
+
+        self._publish(event)
+
+    def _node_failed(
+            self,
+            run_id,
+            node,
+            state,
+            error,
+    ):
+        if self.event_factory is None:
+            return
+
+        event = (
+            self.event_factory.node_failed(
+                run_id=run_id,
+                node_name=node.name,
+                state=state,
+                error=error,
             )
         )
 
