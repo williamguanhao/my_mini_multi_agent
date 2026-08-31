@@ -12,3 +12,5 @@ BASE_URL = os.getenv(
     "MINIMAX_BASE_URL",
     "https://api.minimaxi.com/v1",
 )
+
+FRED_API_KEY = os.environ.get("FRED_API_KEY")

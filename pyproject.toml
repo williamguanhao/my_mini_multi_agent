@@ -1,13 +1,13 @@
 [project]
 name = "mini_agent"
-version = "0.1.0"
+version = "0.5.0"
 requires-python = ">=3.11"
 
 dependencies = [
     "openai>=1.0",
     "python-dotenv>=1.0",
     "yfinance>1.1",
-    "mcp[cli]>=1.0",
+    "mcp[cli]>=1.0,<2",
 ]
 
 [project.scripts]

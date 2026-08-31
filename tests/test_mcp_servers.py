@@ -50,3 +50,50 @@ def test_get_fundamentals_returns_string():
     assert "Apple" in result
     assert "32.1" in result
     assert "0.50%" in result  # dividend yield formatted as percent (2 decimals)
+
+
+def test_fred_get_series_returns_string():
+    import os
+    from mcp_servers.fred import tools as fred_tools
+
+    fake_df = pd.DataFrame(
+        {"value": [4.0, 4.25, 4.5]},
+        index=pd.date_range("2024-01-01", periods=3),
+    )
+    with patch.dict(os.environ, {"FRED_API_KEY": "fake-key"}):
+        with patch.object(fred_tools, "Fred") as MockFred:
+            MockFred.return_value.get_series.return_value = fake_df
+            result = fred_tools.get_series("DGS10", start="2024-01-01")
+
+    assert isinstance(result, str)
+    assert "DGS10" in result
+    assert "4.5" in result
+
+
+def test_fred_search_series_returns_string():
+    import os
+    from mcp_servers.fred import tools as fred_tools
+
+    with patch.dict(os.environ, {"FRED_API_KEY": "fake-key"}):
+        with patch.object(fred_tools, "Fred") as MockFred:
+            MockFred.return_value.search.return_value = pd.DataFrame({
+                "id": ["DGS10", "DGS2"],
+                "title": ["10-Year Treasury", "2-Year Treasury"],
+            })
+            result = fred_tools.search_series("treasury")
+
+    assert isinstance(result, str)
+    assert "DGS10" in result
+    assert "DGS2" in result
+
+
+def test_fred_get_series_missing_api_key():
+    import os
+    from mcp_servers.fred.tools import get_series
+
+    with patch.dict(os.environ, {}, clear=True):
+        try:
+            get_series("DGS10")
+            assert False, "expected ValueError"
+        except ValueError as e:
+            assert "FRED_API_KEY" in str(e)

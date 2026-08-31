@@ -1,6 +1,6 @@
 """MCP server entry point for yfinance finance tools.
 
-This is a thin wrapper. All logic lives in tools.py.
+Uses MCP 1.x Server with @server.list_tools / @server.call_tool decorators.
 """
 import asyncio
 
