@@ -122,9 +122,10 @@ def test_catalog_text_format(skills_dir):
     reg = SkillRegistry(skills_dir=skills_dir)
     catalog = reg.catalog_text()
 
-    assert catalog.startswith("Available skills:\n")
+    assert "To activate a skill" in catalog
+    assert "Available skills:" in catalog
     assert "- review-pr: Review a pull request" in catalog
-    assert '{"skill": "name"}' in catalog
+    assert '{"skill": "<name>"}' in catalog
 
 
 def test_catalog_text_empty_when_no_skills(tmp_path):
@@ -132,3 +133,170 @@ def test_catalog_text_empty_when_no_skills(tmp_path):
 
     reg = SkillRegistry(skills_dir=tmp_path / "empty")
     assert reg.catalog_text() == ""
+
+
+# ---------------------------------------------------------------------------
+# ContextProvider skill integration tests
+# ---------------------------------------------------------------------------
+
+import types
+
+
+class _FakeSession:
+    def __init__(self, session_id="test-session"):
+        self.session_id = session_id
+
+
+class _FakeRetriever:
+    def __init__(self, messages):
+        self._messages = messages
+
+    def retrieve(self, session, query):
+        return list(self._messages)
+
+
+def test_context_injects_catalog_into_system(skills_dir):
+    from mini_agent.context import ContextProvider
+    from mini_agent.skills import SkillRegistry
+
+    _write_skill(skills_dir, "review-pr", SAMPLE_SKILL_MD)
+    reg = SkillRegistry(skills_dir=skills_dir)
+
+    provider = ContextProvider(
+        session=_FakeSession(),
+        retriever=_FakeRetriever([
+            {"role": "user", "content": "review my PR"},
+        ]),
+        skill_registry=reg,
+    )
+
+    ctx = provider.build("review my PR")
+    system = ctx.messages[0]
+    assert system["role"] == "system"
+    assert "Available skills:" in system["content"]
+    assert "- review-pr:" in system["content"]
+
+
+def test_context_no_system_block_when_no_skills(tmp_path):
+    from mini_agent.context import ContextProvider
+    from mini_agent.skills import SkillRegistry
+
+    reg = SkillRegistry(skills_dir=tmp_path / "empty")
+
+    provider = ContextProvider(
+        session=_FakeSession(),
+        retriever=_FakeRetriever([
+            {"role": "user", "content": "hi"},
+        ]),
+        skill_registry=reg,
+    )
+
+    ctx = provider.build("hi")
+    assert all(m["role"] != "system" for m in ctx.messages)
+
+
+def test_context_activates_skill_from_history_intent(skills_dir):
+    from mini_agent.context import ContextProvider
+    from mini_agent.skills import SkillRegistry
+
+    _write_skill(skills_dir, "review-pr", SAMPLE_SKILL_MD)
+    reg = SkillRegistry(skills_dir=skills_dir)
+
+    provider = ContextProvider(
+        session=_FakeSession(),
+        retriever=_FakeRetriever([
+            {"role": "user", "content": "review my PR"},
+            {
+                "role": "assistant",
+                "content": '{"skill": "review-pr"}\nStarting review now.',
+            },
+        ]),
+        skill_registry=reg,
+    )
+
+    ctx = provider.build("continue")
+    system = ctx.messages[0]
+    assert system["role"] == "system"
+    assert "# Active skill: review-pr" in system["content"]
+    assert "When the user asks you to review a PR" in system["content"]
+
+
+def test_context_persists_skill_across_turns(skills_dir):
+    from mini_agent.context import ContextProvider
+    from mini_agent.skills import SkillRegistry
+
+    _write_skill(skills_dir, "review-pr", SAMPLE_SKILL_MD)
+    reg = SkillRegistry(skills_dir=skills_dir)
+
+    class _MultiTurnRetriever:
+        def __init__(self):
+            self.call_count = 0
+
+        def retrieve(self, session, query):
+            self.call_count += 1
+            if self.call_count == 1:
+                return [
+                    {"role": "user", "content": "review my PR"},
+                    {"role": "assistant", "content": '{"skill": "review-pr"}\ngo'},
+                ]
+            return [
+                {"role": "user", "content": "anything else"},
+                {"role": "assistant", "content": "just continuing"},
+            ]
+
+    provider = ContextProvider(
+        session=_FakeSession(),
+        retriever=_MultiTurnRetriever(),
+        skill_registry=reg,
+    )
+
+    first = provider.build("review my PR")
+    assert "# Active skill: review-pr" in first.messages[0]["content"]
+
+    second = provider.build("anything else")
+    assert "# Active skill: review-pr" in second.messages[0]["content"]
+
+
+def test_context_unknown_skill_ignored(skills_dir):
+    from mini_agent.context import ContextProvider
+    from mini_agent.skills import SkillRegistry
+
+    _write_skill(skills_dir, "review-pr", SAMPLE_SKILL_MD)
+    reg = SkillRegistry(skills_dir=skills_dir)
+
+    provider = ContextProvider(
+        session=_FakeSession(),
+        retriever=_FakeRetriever([
+            {"role": "user", "content": "hi"},
+            {
+                "role": "assistant",
+                "content": '{"skill": "does-not-exist"}\nwhatever',
+            },
+        ]),
+        skill_registry=reg,
+    )
+
+    ctx = provider.build("hi")
+    system = ctx.messages[0]
+    assert "# Active skill:" not in system["content"]
+
+
+def test_context_malformed_first_line_ignored(skills_dir):
+    from mini_agent.context import ContextProvider
+    from mini_agent.skills import SkillRegistry
+
+    _write_skill(skills_dir, "review-pr", SAMPLE_SKILL_MD)
+    reg = SkillRegistry(skills_dir=skills_dir)
+
+    provider = ContextProvider(
+        session=_FakeSession(),
+        retriever=_FakeRetriever([
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "{not valid json at all"},
+        ]),
+        skill_registry=reg,
+    )
+
+    ctx = provider.build("hi")
+    system = ctx.messages[0]
+    assert "# Active skill:" not in system["content"]

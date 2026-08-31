@@ -1,18 +1,5 @@
-import json
-from .registry import ToolRegistry
-from .session import Session
-from .runtime import Runtime
-from .retrieval import Retriever
-from .gateway import Gateway
 from .agent_loop import AgentLoop
-SYSTEM = """
-    You are mini_agent, a helpful personal assistant.
 
-    Be concise.
-    Be honest.
-    Do not claim to have performed actions you did not perform.
-    When you are unsure about something, say "I don't know" or "I'm not sure".
-"""
 class Agent:
 
     def __init__(
@@ -25,7 +12,6 @@ class Agent:
             message_store,
             event_bus,
             event_factory,
-            system_prompt=None,
     ):
         self.loop = AgentLoop(
             context_provider=context_provider,
@@ -36,7 +22,6 @@ class Agent:
             message_store=message_store,
             event_bus=event_bus,
             event_factory=event_factory,
-            system_prompt=system_prompt
         )
 
     def run(self, user_input:str, max_steps=10) -> str:

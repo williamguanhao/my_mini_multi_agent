@@ -77,13 +77,12 @@ runtime = Runtime(registry, tracer=tracer)
 
 retriever = Retriever(memory=memory, recent_limit=20, relevent_limit=10)
 agent = Agent(
-        gateway=gateway, 
+        gateway=gateway,
         registry=registry,
         session=session,
         runtime=runtime,
         retriever=retriever,
         tracer=tracer,
-        system_prompt=SYSTEM
     )
 
 evaluator = Evaluator()

@@ -44,7 +44,6 @@ class ThinkNode(Node):
             event_bus,
             event_factory,
             run_id,
-            system_prompt,
     ):
         super().__init__("think")
         self.model_client = model_client
@@ -54,7 +53,6 @@ class ThinkNode(Node):
         self.event_bus = event_bus
         self.event_factory = event_factory
         self.run_id = run_id
-        self.system_prompt = system_prompt
 
     def execute(self, state):
         # Step bookkeeping: think starts a new "step"
@@ -69,7 +67,7 @@ class ThinkNode(Node):
         # Build context
         user_input = state.values.get("user_input", "")
         context = self.context_provider.build(user_input)
-        messages = [self.system_prompt, *context.messages]
+        messages = context.messages
 
         # Call model
         if self.event_factory is not None:
@@ -233,7 +231,6 @@ def _build_graph(
         event_bus,
         event_factory,
         run_id,
-        system_prompt,
 ):
     g = Graph()
     g.add_node("think", ThinkNode(
@@ -244,7 +241,6 @@ def _build_graph(
         event_bus=event_bus,
         event_factory=event_factory,
         run_id=run_id,
-        system_prompt=system_prompt,
     ))
     g.add_node("act", ActNode(
         tool_executor=tool_executor,
@@ -284,8 +280,6 @@ def _build_graph(
 class GraphAgent:
     """Same external shape as Agent, but implemented as a graph run."""
 
-    DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
-
     def __init__(
             self,
             model_client,
@@ -295,7 +289,6 @@ class GraphAgent:
             message_store,
             event_bus=None,
             event_factory=None,
-            system_prompt=None,
     ):
         self.model_client = model_client
         self.tool_executor = tool_executor
@@ -304,11 +297,6 @@ class GraphAgent:
         self.message_store = message_store
         self.event_bus = event_bus
         self.event_factory = event_factory
-        self.system_prompt = (
-            {"role": "system", "content": system_prompt}
-            if system_prompt
-            else {"role": "system", "content": self.DEFAULT_SYSTEM_PROMPT}
-        )
 
     def run(self, user_input: str, max_steps: int = 10) -> AgentResult:
         run_id = str(uuid.uuid4())
@@ -327,7 +315,6 @@ class GraphAgent:
             event_bus=self.event_bus,
             event_factory=self.event_factory,
             run_id=run_id,
-            system_prompt=self.system_prompt,
         )
 
         executor = GraphExecutor(

@@ -54,7 +54,7 @@ def main():
 
     retriever = Retriever(memory=memory, recent_limit=20, relevent_limit=10)
     
-    context_providor = ContextProvider(session=session, retriever=retriever)
+    context_providor = ContextProvider(session=session, retriever=retriever, default_system_prompt=SYSTEM)
 
     message_store = MessageStore(session=session)
 
@@ -106,7 +106,6 @@ def main():
         message_store=message_store,
         event_bus=event_bus,
         event_factory=event_factory,
-        system_prompt=SYSTEM,
     )
 
     if args.engine == "loop":

@@ -905,7 +905,7 @@ def main():
         asyncio.run(teardown_mcp_clients(mcp_clients))
 ```
 
-Note: `asyncio.run` inside the loop would fail (nested loops). If you hit this, the simplest fix is to wrap the chat loop's per-turn work in `asyncio.run` too. Defer that decision to Task 11 if needed.
+Note: `asyncio.run` inside the chat loop would fail (nested loops). If you hit this during manual testing, the simplest fix is to wrap the chat loop's per-turn work in `asyncio.run` too. Defer the fix until discovered in Phase 6 smoke testing.
 
 - [ ] **Step 2: Verify imports work**
 

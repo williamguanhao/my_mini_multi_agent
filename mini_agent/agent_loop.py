@@ -18,7 +18,6 @@ class AgentLoop:
             event_bus=None,
             event_factory=None,
             trace_collector=None,
-            system_prompt=None,
             ):
         self.context_provider = context_provider
         self.model_client = model_client
@@ -31,10 +30,6 @@ class AgentLoop:
         self.event_bus = event_bus
         self.event_factory = event_factory
         self.trace_collector = trace_collector
-        self.system_prompt = {
-            "role": "system",
-            "content": system_prompt
-        }
 
 
     def run(
@@ -81,10 +76,7 @@ class AgentLoop:
                     )
                 )
 
-                messages = [
-                    self.system_prompt,
-                    *context.messages,
-                ]
+                messages = context.messages
 
                 # -------------------------
                 # Model
