@@ -71,7 +71,6 @@ def main():
         SaveNoteTool(memory=memory, session_id=session.session_id),
         CalculatorTool(),
         ReadNotesTool(memory=memory, session_id=session.session_id),
-        GetYfOHLCVTool(),
     ]
 
     registry = ToolRegistry(tools)

@@ -1,0 +1,52 @@
+"""Tests for MCP server tool implementations. No MCP here — pure Python."""
+
+import pandas as pd
+from unittest.mock import patch
+
+
+def test_get_stock_price_returns_string():
+    from mcp_servers.yfinance.tools import get_stock_price
+
+    fake_info = {"shortName": "Apple Inc.", "regularMarketPrice": 150.25}
+    with patch("yfinance.Ticker") as MockTicker:
+        MockTicker.return_value.info = fake_info
+        result = get_stock_price("AAPL")
+
+    assert isinstance(result, str)
+    assert "Apple" in result
+    assert "150.25" in result
+
+
+def test_get_history_returns_string():
+    from mcp_servers.yfinance.tools import get_history
+
+    fake_df = pd.DataFrame(
+        {"Close": [100.0, 101.5, 102.3]},
+        index=pd.date_range("2024-01-01", periods=3),
+    )
+    with patch("yfinance.Ticker") as MockTicker:
+        MockTicker.return_value.history.return_value = fake_df
+        result = get_history("AAPL", period="5d")
+
+    assert isinstance(result, str)
+    assert "AAPL" in result
+    assert "102.3" in result
+
+
+def test_get_fundamentals_returns_string():
+    from mcp_servers.yfinance.tools import get_fundamentals
+
+    fake_info = {
+        "shortName": "Apple Inc.",
+        "marketCap": 3000000000000,
+        "trailingPE": 32.1,
+        "dividendYield": 0.005,
+    }
+    with patch("yfinance.Ticker") as MockTicker:
+        MockTicker.return_value.info = fake_info
+        result = get_fundamentals("AAPL")
+
+    assert isinstance(result, str)
+    assert "Apple" in result
+    assert "32.1" in result
+    assert "0.50%" in result  # dividend yield formatted as percent (2 decimals)
