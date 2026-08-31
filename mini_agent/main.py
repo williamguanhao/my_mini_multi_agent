@@ -4,6 +4,7 @@ from .tools.time import GetTimeTool
 from .tools.save_note import SaveNoteTool
 from .tools.calculator import CalculatorTool
 from .tools.read_notes import ReadNotesTool
+from .tools.get_yfinance_data import GetYfOHLCVTool
 from .agent import Agent
 from .graph_agent import GraphAgent
 from .registry import ToolRegistry
@@ -69,7 +70,8 @@ def main():
         GetTimeTool(),
         SaveNoteTool(memory=memory, session_id=session.session_id),
         CalculatorTool(),
-        ReadNotesTool(memory=memory, session_id=session.session_id)
+        ReadNotesTool(memory=memory, session_id=session.session_id),
+        GetYfOHLCVTool(),
     ]
 
     registry = ToolRegistry(tools)

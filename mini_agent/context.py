@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any
+from skills import SkillRegistry
 
 @dataclass
 class AgentContext:
