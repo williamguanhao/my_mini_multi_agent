@@ -1,5 +1,6 @@
 from .tracer import RunTrace
 
+
 class TraceValidator:
 
     def validate(

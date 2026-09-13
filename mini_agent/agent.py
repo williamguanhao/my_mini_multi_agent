@@ -1,5 +1,6 @@
 from .agent_loop import AgentLoop
 
+
 class Agent:
 
     def __init__(
@@ -29,7 +30,6 @@ class Agent:
             user_input=user_input,
             max_steps=max_steps,
         )
-        print(result)
         if result.status == "error":
             raise result.error
 

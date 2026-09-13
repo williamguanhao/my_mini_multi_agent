@@ -1,40 +1,35 @@
 import argparse
+import logging
 import sys
 
-from .tools.time import GetTimeTool
-from .tools.save_note import SaveNoteTool
+from .agent import Agent
+from .config import API_KEY, MODEL
+from .console_tracer import ConsoleTracer
+from .context import ContextProvider
+from .event_bus import EventBus
+from .event_factory import EventFactory
+from .gateway import Gateway
+from .graph_agent import GraphAgent
+from .json_tracer import JsonTracer
+from .llm.minimax import MiniMaxLLM
+from .mcp import MCPClient
+from .memory import SQLiteMemory
+from .message_store import MessageStore
+from .model import ModelClient
+from .prompts import SYSTEM
+from .registry import ToolRegistry
+from .retrieval import Retriever
+from .runtime import Runtime
+from .session import Session
+from .sqlite_trace_store import SQLiteTraceStore
+from .tool_executor import ToolExecutor
 from .tools.calculator import CalculatorTool
 from .tools.read_notes import ReadNotesTool
-from .tools.get_yfinance_data import GetYfOHLCVTool
-from .agent import Agent
-from .graph_agent import GraphAgent
-from .registry import ToolRegistry
-from .llm.minimax import MiniMaxLLM
-from .session import Session
-from .runtime import Runtime
-from .memory import SQLiteMemory
-from .config import API_KEY, MODEL, BASE_URL
-from .retrieval import Retriever
-from .gateway import Gateway
-from .context import ContextProvider
-from .model import ModelClient
-from .mcp import MCPClient
-from .tool_executor import ToolExecutor
-from .message_store import MessageStore
-from .event_bus import EventBus
-from .console_tracer import ConsoleTracer
-from .json_tracer import JsonTracer
-from .sqlite_trace_store import SQLiteTraceStore
+from .tools.save_note import SaveNoteTool
+from .tools.time import GetTimeTool
 from .trace_collector import TraceCollector
-from .event_factory import EventFactory
-SYSTEM = """
-    You are mini_agent, a helpful personal assistant.
 
-    Be concise.
-    Be honest.
-    Do not claim to have performed actions you did not perform.
-    When you are unsure about something, say "I don't know" or "I'm not sure".
-"""
+logger = logging.getLogger(__name__)
 
 def setup_mcp_clients(registry):
     """Start MCP server subprocesses, discover their tools, register them.
@@ -55,6 +50,11 @@ def setup_mcp_clients(registry):
             args=["-m", "server"],
             cwd="mcp_servers/fred",
         ),
+        MCPClient(
+            command=sys.executable,
+            args=["-m", "server"],
+            cwd="mcp_servers/websearch",
+        ),
     ]
     started = []
     for client in clients:
@@ -63,10 +63,10 @@ def setup_mcp_clients(registry):
             tools = client.list_tools()
             for tool in tools:
                 registry.register(tool)
-            print(f"[mcp] registered {len(tools)} tools from {client._command}")
+            logger.info("MCP: registered %d tools", len(tools))
             started.append(client)
         except Exception as e:
-            print(f"[mcp] failed: {e}")
+            logger.error("MCP: client failed to start: %s", e)
     return started
 
 
@@ -75,7 +75,7 @@ def teardown_mcp_clients(clients):
         try:
             client.disconnect()
         except Exception:
-            pass
+            logger.warning("MCP: client did not disconnect cleanly", exc_info=True)
 
 
 def main():
@@ -91,6 +91,11 @@ def main():
              "'graph' uses the graph-based GraphAgent.",
     )
     args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
 
     memory = SQLiteMemory()
 

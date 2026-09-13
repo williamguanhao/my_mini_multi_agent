@@ -1,7 +1,8 @@
 """Tests for MCP server tool implementations. No MCP here — pure Python."""
 
-import pandas as pd
 from unittest.mock import patch
+
+import pandas as pd
 
 
 def test_get_stock_price_returns_string():
@@ -54,6 +55,7 @@ def test_get_fundamentals_returns_string():
 
 def test_fred_get_series_returns_string():
     import os
+
     from mcp_servers.fred import tools as fred_tools
 
     fake_df = pd.DataFrame(
@@ -72,6 +74,7 @@ def test_fred_get_series_returns_string():
 
 def test_fred_search_series_returns_string():
     import os
+
     from mcp_servers.fred import tools as fred_tools
 
     with patch.dict(os.environ, {"FRED_API_KEY": "fake-key"}):
@@ -88,12 +91,45 @@ def test_fred_search_series_returns_string():
 
 
 def test_fred_get_series_missing_api_key():
-    import os
-    from mcp_servers.fred.tools import get_series
+    from mcp_servers.fred import tools as fred_tools
 
-    with patch.dict(os.environ, {}, clear=True):
+    with patch.object(fred_tools, "FRED_API_KEY", None):
         try:
-            get_series("DGS10")
+            fred_tools.get_series("DGS10")
             assert False, "expected ValueError"
         except ValueError as e:
             assert "FRED_API_KEY" in str(e)
+
+
+def test_websearch_returns_string():
+    from mcp_servers.websearch.tools import web_search
+
+    fake_results = [
+        {"title": "Apple Inc.", "href": "https://apple.com", "body": "Tech company."},
+        {"title": "Apple - Wikipedia", "href": "https://wikipedia.org/Apple", "body": "Article about Apple."},
+    ]
+
+    class _FakeDDGS:
+        def text(self, query, max_results):
+            return fake_results[:max_results]
+
+    with patch("mcp_servers.websearch.tools.DDGS", _FakeDDGS):
+        result = web_search("apple", max_results=2)
+
+    assert isinstance(result, str)
+    assert "apple" in result.lower()
+    assert "Apple Inc." in result
+    assert "https://apple.com" in result
+
+
+def test_websearch_no_results():
+    from mcp_servers.websearch.tools import web_search
+
+    class _FakeDDGS:
+        def text(self, query, max_results):
+            return []
+
+    with patch("mcp_servers.websearch.tools.DDGS", _FakeDDGS):
+        result = web_search("nonexistent query")
+
+    assert "No results" in result

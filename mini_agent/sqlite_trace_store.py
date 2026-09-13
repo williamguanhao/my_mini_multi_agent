@@ -2,9 +2,10 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .tracer import RunTrace
 from .events import Event
 from .trace_store import TraceStore
+from .tracer import RunTrace
+
 
 class SQLiteTraceStore(TraceStore):
 

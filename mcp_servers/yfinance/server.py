@@ -6,10 +6,8 @@ import asyncio
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-
-from tools import get_stock_price, get_history, get_fundamentals
-
+from mcp.types import TextContent, Tool
+from tools import get_fundamentals, get_history, get_stock_price
 
 server = Server("yfinance")
 

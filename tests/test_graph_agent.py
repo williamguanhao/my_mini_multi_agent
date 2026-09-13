@@ -4,77 +4,11 @@ Exercises GraphAgent.run() against fake model + tool executor.
 Proves the graph topology works:
   - simple Q&A: think → answer → __end__
   - tool path:   think → act → think → answer → __end__
-
-Loads graph/ modules via importlib (graph/__init__.py is empty).
 """
 
-import importlib.util
-import pathlib
-import sys
 import types
 
-import pytest
-
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-GRAPH_DIR = ROOT / "graph"
-
-
-def _ensure_graph_pkg():
-    if "graph_pkg" not in sys.modules:
-        pkg = types.ModuleType("graph_pkg")
-        pkg.__path__ = [str(GRAPH_DIR)]
-        sys.modules["graph_pkg"] = pkg
-
-
-def _load(mod_name, file_name):
-    _ensure_graph_pkg()
-    full_name = f"graph_pkg.{mod_name}"
-    spec = importlib.util.spec_from_file_location(
-        full_name, str(GRAPH_DIR / file_name)
-    )
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[full_name] = module
-    setattr(sys.modules["graph_pkg"], mod_name, module)
-    spec.loader.exec_module(module)
-    return module
-
-
-@pytest.fixture(scope="module")
-def graph_pkg():
-    state = _load("state", "state.py")
-    edge = _load("edge", "edge.py")
-    node = _load("node", "node.py")
-    graph_mod = _load("graph", "graph.py")
-    router = _load("router", "router.py")
-
-    # Register a "graph" alias as a real package so that
-    # `from graph.node import Node` (used in graph_agent.py) resolves.
-    if "graph" not in sys.modules or not hasattr(sys.modules.get("graph"), "__path__"):
-        graph_pkg_alias = types.ModuleType("graph")
-        graph_pkg_alias.__path__ = [str(GRAPH_DIR)]
-        sys.modules["graph"] = graph_pkg_alias
-    sys.modules["graph"].node = node
-    sys.modules["graph"].graph = graph_mod
-    sys.modules["graph"].state = state
-    sys.modules["graph"].router = router
-    sys.modules["graph"].edge = edge
-    sys.modules["graph"].Graph = graph_mod.Graph
-    sys.modules["graph"].GraphState = state.GraphState
-    sys.modules["graph"].Node = node.Node
-    sys.modules["graph"].FunctionRouter = router.FunctionRouter
-
-    # executor.py uses `from .graph import Graph` (relative) and
-    # originally `from state import GraphState` — also alias "state".
-    sys.modules["state"] = state
-
-    _load("executor", "executor.py")
-    return {
-        "Graph": graph_mod.Graph,
-        "GraphState": state.GraphState,
-        "Node": node.Node,
-        "FunctionRouter": router.FunctionRouter,
-    }
-
+from mini_agent.graph_agent import GraphAgent
 
 # ---------------------------------------------------------------------------
 # Fakes for the dependencies GraphAgent expects
@@ -194,9 +128,8 @@ class FakeToolExecutor:
 # Tests
 # ---------------------------------------------------------------------------
 
-def test_graph_agent_simple_qa_no_tool(graph_pkg):
+def test_graph_agent_simple_qa_no_tool():
     """Single LLM call returns an answer → graph goes think → answer → END."""
-    from mini_agent.graph_agent import GraphAgent
 
     model = FakeModelClient([FakeResponse(content="Hello to you too!")])
     message_store = FakeMessageStore()
@@ -233,9 +166,8 @@ class CustomStyleToolCall:
         self.id = call_id or f"call_{name}_{id(self)}"
 
 
-def test_graph_agent_custom_style_tool_call(graph_pkg):
+def test_graph_agent_custom_style_tool_call():
     """Tool call where the object has `.name`/`.arguments` directly, no `.function`."""
-    from mini_agent.graph_agent import GraphAgent
 
     tool_response = FakeResponse(
         tool_calls=[CustomStyleToolCall("calculator", {"expr": "456*454"})]
@@ -263,9 +195,8 @@ def test_graph_agent_custom_style_tool_call(graph_pkg):
     assert tools.calls[0].name == "calculator"
 
 
-def test_graph_agent_tool_call_then_answer(graph_pkg):
+def test_graph_agent_tool_call_then_answer():
     """LLM asks for a tool, gets the result, then returns a final answer."""
-    from mini_agent.graph_agent import GraphAgent
 
     tool_response = FakeResponse(
         tool_calls=[FakeToolCall("calculator", {"expr": "2+2"})]

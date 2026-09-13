@@ -1,4 +1,7 @@
-from .tracer import RunTrace
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class EventBus:
 
@@ -17,6 +20,9 @@ class EventBus:
 
             except Exception as e:
 
-                print(
-                    f"Event handler failed: {e}"
+                logger.warning(
+                    "Event handler %s failed for %s: %s",
+                    type(handler).__name__,
+                    event.event_type,
+                    e,
                 )

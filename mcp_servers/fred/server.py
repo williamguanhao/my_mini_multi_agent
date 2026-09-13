@@ -3,10 +3,8 @@ import asyncio
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-
+from mcp.types import TextContent, Tool
 from tools import get_series, search_series
-
 
 server = Server("fred")
 

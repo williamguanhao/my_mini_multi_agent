@@ -1,10 +1,10 @@
 """Pure-Python tool implementations for the FRED MCP server."""
 
-import os
 
-import pandas as pd
 from fredapi import Fred
+
 from mini_agent.config import FRED_API_KEY
+
 
 def _client() -> Fred:
     api_key = FRED_API_KEY

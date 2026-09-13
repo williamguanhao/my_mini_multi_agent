@@ -1,6 +1,5 @@
 import re
 
-
 STOP_WORDS = {
     "what",
     "is",

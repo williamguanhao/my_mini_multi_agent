@@ -1,7 +1,8 @@
+from .exceptions import GraphExecutionLimit
 from .graph import Graph
 from .state import GraphState
-from .exceptions import GraphExecutionLimit
 from .state_diff import diff_states
+
 
 class GraphExecutor:
 
@@ -21,7 +22,7 @@ class GraphExecutor:
             graph,
             state: GraphState | None = None,
             run_id: str | None = None,
-            max_steps: int =100
+            max_steps: int | None = None,
     ) -> GraphState:
 
         step_limit = (
@@ -35,14 +36,14 @@ class GraphExecutor:
 
         if run_id is None:
             raise ValueError(
-                "run_id cannoot be empty"
+                "run_id cannot be empty"
             )
 
         current_node = Graph.START
 
         state.current_node = current_node
 
-        for _ in range(max_steps):
+        for _ in range(step_limit):
 
             state_before = state.snapshot()
             # ---------------------------------------------

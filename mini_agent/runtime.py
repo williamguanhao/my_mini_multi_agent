@@ -1,6 +1,15 @@
-import json
+import logging
 import time
+
+from .tool_calls import (
+    parse_tool_arguments,
+    tool_call_arguments,
+    tool_call_name,
+)
 from .tool_result import ToolResult
+
+logger = logging.getLogger(__name__)
+
 
 class Runtime:
 
@@ -71,8 +80,16 @@ class Runtime:
 
                 # We may not have successfully parsed
                 # the tool name, so determine it safely.
-                name = self._get_tool_name(
-                    tool_call
+                name = tool_call_name(
+                    tool_call,
+                    default="<unknown>",
+                )
+
+                logger.warning(
+                    "Tool %s failed after %.3fs: %s",
+                    name,
+                    duration,
+                    e,
                 )
 
 
@@ -160,52 +177,14 @@ class Runtime:
 
         raw_arguments = self._get_tool_arguments(tool_call)
 
-
-        if isinstance(raw_arguments, str):
-            arguments = json.loads(
-                raw_arguments
-            )
-        elif isinstance(raw_arguments, dict):
-            arguments = raw_arguments
-        else:
-            raise TypeError(
-                "Tool arguments must be "
-                "a JSON string or dictionary"
-            )
+        arguments = parse_tool_arguments(raw_arguments)
 
         return name, arguments
-        
+
 
     def _get_tool_name(self, tool_call):
+        return tool_call_name(tool_call)
 
-        # OpenAI-style:
-        #
-        # tool_call.function.name
-        #
-        if hasattr(tool_call, "function"):
-            return tool_call.function.name
-                 # Custom ToolCall-style:
 
-        # Custom ToolCall-style:
-        #
-        # tool_call.name
-        #
-        if hasattr(tool_call, "name"):
-            return tool_call.name
-
-        return "<unknown>"
-
-    
     def _get_tool_arguments(self, tool_call):
-
-        # OpenAI-style
-        if hasattr(tool_call, "function"):
-            return tool_call.function.arguments
-
-        # Custom ToolCall-style
-        if hasattr(tool_call, "arguments"):
-            return tool_call.arguments
-
-        raise ValueError(
-            "Tool call does not contain arguments"
-        )
+        return tool_call_arguments(tool_call)

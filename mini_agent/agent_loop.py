@@ -1,10 +1,10 @@
-from .agent_state import AgentState
-from .agent_result import AgentResult
-from .tracer import RunTrace
-
 import uuid
-import time
-import json
+
+from .agent_result import AgentResult
+from .agent_state import AgentState
+from .tool_calls import tool_call_name
+
+
 class AgentLoop:
 
     def __init__(
@@ -168,7 +168,7 @@ class AgentLoop:
             error: Exception,
     ) -> AgentResult:
 
-        state.error = error,
+        state.error = error
 
         self._publish(
             self.event_factory.run_failed(
@@ -329,44 +329,4 @@ class AgentLoop:
 
     @staticmethod
     def _tool_name(tool_call) -> str:
-
-        # OpenAI-style:
-        #
-        # tool_call.function.name
-        #
-
-        function = getattr(
-            tool_call,
-            "function",
-            None,
-        )
-
-        if function is not None:
-
-            name = getattr(
-                function,
-                "name",
-                None,
-            )
-
-            if name:
-                return name
-
-        # Custom style:
-        #
-        # tool_call.name
-        #
-
-        name = getattr(
-            tool_call,
-            "name",
-            None,
-        )
-
-        if name:
-            return name
-
-        raise ValueError(
-            "Tool call does not contain "
-            "a tool name."
-        )
+        return tool_call_name(tool_call)

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import Callable
 
-from .tracer import RunTrace
 from .events import Event
 from .trace_validator import TraceValidator
+from .tracer import RunTrace
+
 
 @dataclass
 class ReplayResult:

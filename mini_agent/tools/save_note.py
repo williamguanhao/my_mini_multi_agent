@@ -1,5 +1,6 @@
 from ..tool import Tool
 
+
 class SaveNoteTool(Tool):
 
     def __init__(self, memory, session_id):

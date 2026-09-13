@@ -1,9 +1,12 @@
-from dataclasses import dataclass
-from typing import Any
+import logging
 import re
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .skills import SkillRegistry
+
+logger = logging.getLogger(__name__)
 
 SKILL_INTENT_RE = re.compile(
     r'\A\s*\{"skill":\s*"([^"]+)"\}\s*(?:\n|\Z)'
@@ -81,7 +84,7 @@ class ContextProvider:
         if catalog:
             parts.append(catalog)
         if self._active_skill_name:
-            print(f"<Skill {self._active_skill_name} loaded> ")
+            logger.info("Active skill loaded: %s", self._active_skill_name)
             skill = self.skills.get(self._active_skill_name)
             if skill is not None:
                 parts.append(f"# Active skill: {skill.name}\n{skill.body}")

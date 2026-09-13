@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+
 @dataclass
 class AgentState:
     user_input: str

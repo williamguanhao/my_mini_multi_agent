@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from .state import GraphState
 
+
 class Router(ABC):
     """
     Determines which route should be taken

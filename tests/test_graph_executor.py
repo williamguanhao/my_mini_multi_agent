@@ -43,7 +43,7 @@ def _load(mod_name: str, file_name: str):
 def graph_pkg():
     """Load graph modules once per test module via importlib."""
     state = _load("state", "state.py")
-    edge = _load("edge", "edge.py")
+    _load("edge", "edge.py")
     node = _load("node", "node.py")
     graph_mod = _load("graph", "graph.py")
 

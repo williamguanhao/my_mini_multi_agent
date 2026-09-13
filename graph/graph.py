@@ -1,12 +1,13 @@
-from .node import Node
 from .edge import Edge
-from .state import GraphState
-from .router import Router
 from .exceptions import (
     InvalidRoute,
-    NoRoute,
     MultipleRoutes,
+    NoRoute,
 )
+from .node import Node
+from .router import Router
+from .state import GraphState
+
 
 class Graph:
 
@@ -74,44 +75,6 @@ class Graph:
                 f"Unknown node:{name}"
             )
         return self.nodes[name]
-
-    # def get_next_nodes(
-    #         self, 
-    #         source: str, 
-    #         state
-    # ):
-    #     return [
-    #         edge.target
-    #         for edge in self.edges
-    #         if edge.source == source
-    #         and edge.should_traverse(state)
-    #     ]
-
-    # def get_next_node(
-    #         self,
-    #         source: str,
-    #         state,
-    # ):
-    #     candidates = self.get_next_nodes(
-    #         source=source,
-    #         state=state,
-    #     )
-
-    #     if len(candidates) == 0:
-
-    #         raise RuntimeError(
-    #             f"No valid edge from "
-    #             f"'{source}'."
-    #         )
-
-    #     if len(candidates) > 1:
-
-    #         raise RuntimeError(
-    #             f"Multiple valid edges from "
-    #             f"'{source}': {candidates}"
-    #         )
-
-    #     return candidates[0]
 
     def get_next_edge(
         self,

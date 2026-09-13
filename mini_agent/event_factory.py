@@ -156,7 +156,7 @@ class EventFactory:
             payload={
                 "node_name": node_name,
                 "node_execution_id": f"{run_id}:{state.step}:{node_name}",
-                "state": state,
+                "state": state.snapshot(),
             }
         )
 

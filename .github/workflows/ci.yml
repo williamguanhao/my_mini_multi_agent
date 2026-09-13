@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, agent_node]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install workspace (root + MCP servers) and dev tools
+        run: uv sync --all-packages
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Tests
+        run: uv run pytest
+        env:
+          # Tests must never depend on real credentials.
+          MINIMAX_API_KEY: ""
+          FRED_API_KEY: ""

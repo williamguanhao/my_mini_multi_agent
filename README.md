@@ -2,6 +2,9 @@
 
 A lightweight AI agent framework with tool execution, memory, and evaluation capabilities.
 
+- Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md) · Learning notes: [LEARNING_PATH.md](LEARNING_PATH.md)
+- Learning notebooks: [`notebooks/`](notebooks/) — one per improvement, runnable with fakes (no API key)
+
 ## Features
 
 - **LLM Integration**: Supports multiple LLM providers (MiniMax, OpenAI, OpenRouter)

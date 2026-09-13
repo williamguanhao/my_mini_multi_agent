@@ -59,7 +59,7 @@ def _load(mod_name, file_name):
 @pytest.fixture(scope="module")
 def graph_pkg():
     state = _load("state", "state.py")
-    edge = _load("edge", "edge.py")
+    _load("edge", "edge.py")
     node = _load("node", "node.py")
     graph_mod = _load("graph", "graph.py")
     # executor.py uses `from .graph import Graph` and `from .state import GraphState`

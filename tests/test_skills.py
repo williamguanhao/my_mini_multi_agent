@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 SAMPLE_SKILL_MD = textwrap.dedent("""\
     ---
     name: review-pr
@@ -139,7 +138,6 @@ def test_catalog_text_empty_when_no_skills(tmp_path):
 # ContextProvider skill integration tests
 # ---------------------------------------------------------------------------
 
-import types
 
 
 class _FakeSession:

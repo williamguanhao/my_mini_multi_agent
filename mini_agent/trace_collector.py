@@ -1,5 +1,10 @@
-from .tracer import RunTrace
 import json
+import logging
+
+from .tracer import RunTrace
+
+logger = logging.getLogger(__name__)
+
 
 class TraceCollector:
 
@@ -58,11 +63,10 @@ class TraceCollector:
                     )
                 )
 
-                print(
-                    json.dumps(
-                        trace.to_dict(),
-                        indent=2,
-                        )
+                logger.debug(
+                    "run %s completed:\n%s",
+                    trace.run_id,
+                    json.dumps(trace.to_dict(), indent=2),
                 )
 
                 self.store.save(trace)

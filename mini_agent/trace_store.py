@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from .tracer import RunTrace
 
+
 class TraceStore(ABC):
 
     @abstractmethod

@@ -13,9 +13,12 @@ which dispatches the coroutine to the background loop via
 """
 
 import asyncio
+import logging
 import threading
 
 from .tool import Tool
+
+logger = logging.getLogger(__name__)
 
 
 class BackgroundLoop:
@@ -127,9 +130,22 @@ class MCPClient:
         await self._session.initialize()
 
     def disconnect(self) -> None:
-        """Tear down session, kill subprocess, stop the background loop."""
+        """Tear down session, kill subprocess, stop the background loop.
+
+        Best-effort: exiting the stdio context from a different asyncio
+        task than it entered (BackgroundLoop spawns one task per run())
+        trips anyio's cancel-scope check, so failures are logged, not
+        raised. The child process exits when the parent's stdio pipes
+        close. Permanent fix: a native-async client (roadmap #5).
+        """
         try:
             self._loop.run(self._disconnect_async())
+        except Exception as e:
+            logger.warning(
+                "MCP client shutdown incomplete (%s); child process "
+                "will exit when stdio closes",
+                e,
+            )
         finally:
             self._loop.stop()
 

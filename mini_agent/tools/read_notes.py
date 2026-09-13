@@ -1,5 +1,6 @@
 from ..tool import Tool
 
+
 class ReadNotesTool(Tool):
 
     def __init__(self, memory, session_id):

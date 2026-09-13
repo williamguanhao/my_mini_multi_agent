@@ -3,13 +3,42 @@
 Phase 1  ██████████   Refactor the existing Agent Loop
 Phase 2  ██████████   Make tracing first-class
 Phase 3  ██████████   Build the Graph Engine
-Phase 4  ░░░░░░░░░░   Agent as Graph Node
+Phase 4  ██████████   Agent as Graph Node
 Phase 5  ░░░░░░░░░░   Multi-Agent Runtime
 Phase 6  ░░░░░░░░░░   Real Research Tools
 Phase 7  ░░░░░░░░░░   Skills
 Phase 8  ░░░░░░░░░░   Upgrade Memory + Eval
 Phase 9  ░░░░░░░░░░   Integrate derivative pricing models
 Phase 10 ░░░░░░░░░░   Build financial research & pricing agent
+
+## Foundation hardening — 2026-09-13 (before Phase 4)
+
+Full plan: [docs/ROADMAP.md](docs/ROADMAP.md). Learning notes: [LEARNING_PATH.md](LEARNING_PATH.md).
+
+### Added
+- `.env.example`; `.env` untracked from git (working copy kept)
+- root `conftest.py` so tests import `mini_agent` / `graph` / `mcp_servers.*` reliably
+- dev dependency group (pytest, pytest-cov, ruff, mypy) + uv workspace over the 3 MCP servers
+- GitHub Actions CI (ruff + pytest, empty credentials by design)
+- eval harness rebuilt on the current `Event`/`EventBus` API; `agent-eval` works again;
+  `tests/test_eval.py` covers scoring with fakes
+- shared system prompt `mini_agent/prompts.py` (was duplicated in 3 places)
+
+### Fixed
+- `agent_loop._fail`: `state.error = error,` stored a tuple, not the exception
+- `GraphExecutor.run`: loop iterated `max_steps` (crash on `None`) instead of `step_limit`
+- `EventFactory.node_started`: embedded a live `GraphState` object (not JSON-serializable);
+  now stores `state.snapshot()`
+- `test_conditional_graph_routing.py` never collected (relative import in non-package);
+  rewritten with absolute imports and real assertions
+
+### Changed
+- removed dead code: `graph/runner.py` (typo `exexutor`), `graph/agent_graph.py`,
+  old `graph/nodes/*` (called nonexistent `agent.complete()`), demo node stubs in
+  `graph/node.py`, stale `eval/runEval.py`, `mini_agent/trace/replay.py`,
+  `agent_decision.py`, `trace_handler.py`, `mini_agent/test_replay.py`
+- `print` → `logging` in agent, event bus, trace collector, context, main, runtime
+- `mcp[cli]<2` pinned in `mcp_servers/yfinance` (matches root + D1 lesson)
 
 ## Phase 3 — Build the Graph Engine
 
@@ -342,7 +371,33 @@ mini_agent/
 
 ## Phase 4 — Agent as Graph Node
 
+### Added
+- canonical nodes in `mini_agent/nodes/`: `AgentNode` (context → model → decision),
+  `ToolNode` (executes decision calls, appends `tool_calls_log`, persists results,
+  links `tool_completed` → `tool_started`), `AnswerNode`, `DecisionRouter`,
+  and `state_keys.py` (the five-key state contract)
+- `mini_agent/tool_calls.py`: single tool-call shape normalizer
+  (`tool_call_name` / `tool_call_arguments` / `parse_tool_arguments`),
+  replacing three drifted copies in `AgentLoop`, `Runtime`, and the old `ActNode`
+- `tests/test_agent_nodes.py`: 12 node-level tests (decisions, event linkage,
+  no-tracing paths, router, run reuse and isolation)
+- learning notebook `notebooks/01_agent_as_node.ipynb` (executed, fake-based)
 
+### Changed
+- `GraphAgent` rewritten as a thin builder: graph built **once** in `__init__`
+  (was rebuilt every run with `run_id` baked into node constructors);
+  `run_id`/`user_input` flow through `GraphState`
+- `GraphAgent` now publishes `run_started`/`run_completed`/`run_failed`
+  (mirrors `AgentLoop`; graph runs persist in `SQLiteTraceStore` from now on)
+- `GraphExecutor` is the single owner of `state.step` (was double-incremented
+  by the old `ThinkNode`); `max_steps` mapping documented: `2 * max_steps + 2`
+- `Runtime._get_tool_name` raises via the shared normalizer (error path uses
+  `default="<unknown>"` to stay safe inside `except`)
+
+### Learned
+- nodes must be stateless across runs: infrastructure identity belongs in state
+- capability nodes sit at the edge (`mini_agent/nodes/`), engine stays pure
+  (`graph/`) — see DECISIONS.md "Agent as Node"
 
 ## Phase 5 — Multi-Agent Runtime
 
